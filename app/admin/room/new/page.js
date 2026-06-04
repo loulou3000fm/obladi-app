@@ -26,6 +26,7 @@ export default function NewRoom() {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); alert('Session expirée, reconnecte-toi.'); router.push('/login'); return }
     const code = generateRoomCode()
     const { data, error } = await supabase.from('rooms').insert({
       code,

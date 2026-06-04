@@ -74,7 +74,22 @@ export default function Admin() {
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
           <span style={{fontSize:'13px', color:'#999'}}>app</span>
         </a>
-        <span style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em'}}>Admin</span>
+        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+          <button
+            onClick={async () => {
+              const pwd = prompt('Nouveau mot de passe :')
+              if (!pwd) return
+              const supabase = createClient()
+              const { error } = await supabase.auth.updateUser({ password: pwd })
+              if (error) alert('Erreur : ' + error.message)
+              else alert('Mot de passe mis à jour !')
+            }}
+            style={{padding:'6px 12px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', color:'#999'}}
+          >
+            Mot de passe
+          </button>
+          <span style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em'}}>Admin</span>
+        </div>
       </nav>
 
       <div style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>

@@ -108,8 +108,13 @@ export default function PlaylistAdmin() {
     const match = youtubeInput.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
     const youtubeId = match ? match[1] : youtubeInput.trim()
     if (!youtubeId) return
-    const supabase = createClient()
-    await supabase.from('songs').update({ youtube_id: youtubeId }).eq('id', songId)
+    const res = await fetch('/api/update-song', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song_id: songId, youtube_id: youtubeId })
+    })
+    const data = await res.json()
+    if (data.error) { console.error('updateYoutubeId error:', data.error); return }
     setSongs(prev => prev.map(s => s.id === songId ? { ...s, youtube_id: youtubeId } : s))
     setEditingYoutube(null)
     setYoutubeInput('')

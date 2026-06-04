@@ -1,4 +1,23 @@
+'use client'
+import { useEffect } from 'react'
+import { createClient } from '../lib/supabase'
+import { useRouter } from 'next/navigation'
+
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hash = window.location.hash
+    if (!hash.includes('access_token')) return
+
+    async function handleTokenInHash() {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) router.push('/dashboard')
+    }
+    handleTokenInHash()
+  }, [])
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#ffffff', fontFamily:'system-ui, sans-serif'}}>
 

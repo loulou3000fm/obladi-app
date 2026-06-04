@@ -59,6 +59,8 @@ export default function Admin() {
     if (!confirm('Supprimer cette room ?')) return
     const supabase = createClient()
     setRooms(prev => prev.filter(r => r.id !== id))
+    await supabase.from('room_players').delete().eq('room_id', id)
+    await supabase.from('answers').delete().eq('room_id', id)
     await supabase.from('rooms').delete().eq('id', id)
   }
 

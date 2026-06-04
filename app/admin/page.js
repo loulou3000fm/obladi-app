@@ -57,14 +57,17 @@ export default function Admin() {
 
   async function deleteRoom(id) {
     if (!confirm('Supprimer cette room ?')) return
-    const supabase = createClient()
-    const { error: e1 } = await supabase.from('answers').delete().eq('room_id', id)
-    console.log('answers delete:', e1)
-    const { error: e2 } = await supabase.from('room_players').delete().eq('room_id', id)
-    console.log('room_players delete:', e2)
-    const { error: e3 } = await supabase.from('rooms').delete().eq('id', id)
-    console.log('rooms delete:', e3)
     setRooms(prev => prev.filter(r => r.id !== id))
+    const res = await fetch('/api/delete-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_id: id })
+    })
+    const data = await res.json()
+    if (data.error) {
+      console.error('deleteRoom error:', data.error)
+      loadRooms()
+    }
   }
 
   const statusLabel = { waiting: 'En attente', playing: '● En cours', finished: 'Terminée', interrupted: 'Interrompue' }

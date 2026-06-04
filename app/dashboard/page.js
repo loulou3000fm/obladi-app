@@ -25,6 +25,7 @@ export default function Dashboard() {
 
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(prof)
+      if (prof?.is_admin === true) { router.push('/admin'); return }
 
       const { data: hist } = await supabase
         .from('game_sessions')

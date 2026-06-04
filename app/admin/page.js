@@ -88,6 +88,16 @@ export default function Admin() {
           >
             Mot de passe
           </button>
+          <button
+            onClick={async () => {
+              const supabase = createClient()
+              await supabase.auth.signOut()
+              router.push('/login')
+            }}
+            style={{padding:'6px 12px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', color:'#999'}}
+          >
+            Déconnexion
+          </button>
           <span style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em'}}>Admin</span>
         </div>
       </nav>

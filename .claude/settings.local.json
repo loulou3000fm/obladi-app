@@ -4,7 +4,10 @@
       "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\dupon\\\\Desktop\\\\obladi-app\\\\app\\\\api\\\\preview\")",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)"
     ]
   }
 }

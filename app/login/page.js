@@ -28,7 +28,7 @@ export default function Login() {
     setLoading(true)
     const supabase = createClient()
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/set-password`
+      redirectTo: 'https://obladi.live/set-password'
     })
     setResetSent(true)
     setLoading(false)

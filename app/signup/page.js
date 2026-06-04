@@ -34,7 +34,7 @@ export default function Signup() {
     const { data, error: signupError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: null }
+      options: { emailRedirectTo: 'https://obladi.live/auth/callback' }
     })
 
     if (signupError) { setError(signupError.message); setLoading(false); return }

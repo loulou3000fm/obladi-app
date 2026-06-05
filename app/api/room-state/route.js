@@ -22,7 +22,14 @@ export async function GET(request) {
 
     if (error || !room) return NextResponse.json({ error: 'room not found' }, { status: 404 })
 
-    return NextResponse.json(room, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json(room, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
+    })
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

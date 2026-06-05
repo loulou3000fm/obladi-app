@@ -105,6 +105,7 @@ export default function HostRoom() {
 
   const roomUrl = typeof window !== 'undefined' ? `${window.location.origin}/room/${code}` : ''
   const song = songs[currentIndex]
+  const readyCount = players.filter(p => p.is_ready).length
 
   if (!room) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui'}}>
@@ -161,10 +162,17 @@ export default function HostRoom() {
 
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {phase === 'waiting' && (
-              <button onClick={startGame} disabled={loading || players.length === 0}
-                style={{width:'100%', padding:'16px', backgroundColor: players.length > 0 ? '#111' : '#ccc', color:'#fff', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:'500', cursor: players.length > 0 ? 'pointer' : 'default'}}>
-                {loading ? 'Lancement...' : players.length === 0 ? 'En attente de joueurs...' : `🎵 Lancer la partie (${players.length} joueur${players.length > 1 ? 's' : ''})`}
-              </button>
+              <>
+                <button onClick={startGame} disabled={loading || players.length === 0}
+                  style={{width:'100%', padding:'16px', backgroundColor: players.length > 0 ? '#111' : '#ccc', color:'#fff', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:'500', cursor: players.length > 0 ? 'pointer' : 'default'}}>
+                  {loading ? 'Lancement...' : players.length === 0 ? 'En attente de joueurs...' : `🎵 Lancer la partie (${players.length} joueur${players.length > 1 ? 's' : ''})`}
+                </button>
+                {players.length > 0 && readyCount < players.length && (
+                  <p style={{fontSize:'12px', color:'#f59e0b', textAlign:'center', margin:'0'}}>
+                    ⚠ {players.length - readyCount} joueur{players.length - readyCount > 1 ? 's' : ''} pas encore prêt{players.length - readyCount > 1 ? 's' : ''}
+                  </p>
+                )}
+              </>
             )}
             {phase === 'playing' && (
               <>
@@ -204,19 +212,26 @@ export default function HostRoom() {
         </div>
 
         <div>
-          <p style={{fontSize:'13px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>{players.length} joueur{players.length > 1 ? 's' : ''}</p>
+          <p style={{fontSize:'13px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>
+            {players.length} joueur{players.length > 1 ? 's' : ''}{players.length > 0 && (
+              <span style={{fontWeight:'400', color: readyCount === players.length ? '#16a34a' : '#999'}}> — {readyCount}/{players.length} prêts</span>
+            )}
+          </p>
           <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
             {players.length === 0 && (
               <p style={{fontSize:'13px', color:'#999', padding:'16px', textAlign:'center', border:'1px solid #f0f0f0', borderRadius:'8px'}}>En attente de joueurs...</p>
             )}
             {players.map((p, i) => (
-              <div key={p.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', backgroundColor:'#f8f8f8', borderRadius:'8px'}}>
+              <div key={p.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', backgroundColor:'#f8f8f8', borderRadius:'8px', border: p.is_ready ? '1px solid #dcfce7' : '1px solid transparent'}}>
                 <span style={{fontSize:'12px', color:'#999', width:'16px'}}>{i + 1}</span>
                 <span style={{fontSize:'20px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
                 <div style={{flex:1}}>
                   <p style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>{p.profiles?.pseudo}</p>
                   <p style={{fontSize:'11px', color:'#999'}}>{p.score} pts</p>
                 </div>
+                <span style={{fontSize:'13px', color: p.is_ready ? '#16a34a' : '#ccc'}} title={p.is_ready ? 'Prêt' : 'Pas prêt'}>
+                  {p.is_ready ? '✓' : '○'}
+                </span>
               </div>
             ))}
           </div>

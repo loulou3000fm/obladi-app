@@ -11,6 +11,7 @@ export default function RoomLobby() {
   const [room, setRoom] = useState(null)
   const [players, setPlayers] = useState([])
   const [joined, setJoined] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState('')
   const roomRef = useRef(null)
   const userRef = useRef(null)
@@ -46,7 +47,10 @@ export default function RoomLobby() {
         .eq('room_id', roomData.id)
         .eq('player_id', user.id)
         .maybeSingle()
-      if (existingPlayer) setJoined(true)
+      if (existingPlayer) {
+        setJoined(true)
+        setIsReady(existingPlayer.is_ready || false)
+      }
 
       await refreshPlayers(supabase, roomData.id)
 
@@ -87,6 +91,16 @@ export default function RoomLobby() {
       score: 0
     }, { onConflict: 'room_id,player_id' })
     setJoined(true)
+  }
+
+  async function toggleReady() {
+    const supabase = createClient()
+    const newReady = !isReady
+    await supabase.from('room_players')
+      .update({ is_ready: newReady })
+      .eq('room_id', roomRef.current.id)
+      .eq('player_id', userRef.current.id)
+    setIsReady(newReady)
   }
 
   async function leaveRoom() {
@@ -139,9 +153,10 @@ export default function RoomLobby() {
           <p style={{fontSize:'13px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>{players.length} joueur{players.length > 1 ? 's' : ''} dans le lobby</p>
           <div style={{display:'flex', flexWrap:'wrap', gap:'8px'}}>
             {players.map(p => (
-              <div key={p.id} style={{display:'flex', alignItems:'center', gap:'8px', padding:'8px 12px', backgroundColor:'#f8f8f8', borderRadius:'8px'}}>
+              <div key={p.id} style={{display:'flex', alignItems:'center', gap:'8px', padding:'8px 12px', backgroundColor:'#f8f8f8', borderRadius:'8px', border: p.is_ready ? '1px solid #dcfce7' : '1px solid transparent'}}>
                 <span style={{fontSize:'20px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
                 <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>{p.profiles?.pseudo}</span>
+                <span style={{fontSize:'12px', color: p.is_ready ? '#16a34a' : '#ccc'}}>{p.is_ready ? '✓' : '○'}</span>
               </div>
             ))}
           </div>
@@ -153,9 +168,18 @@ export default function RoomLobby() {
           </button>
         ) : (
           <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-            <div style={{textAlign:'center', padding:'16px', backgroundColor:'#f0fdf4', borderRadius:'8px', border:'1px solid #dcfce7'}}>
-              <p style={{fontSize:'14px', color:'#16a34a', fontWeight:'500'}}>✓ Tu es dans le lobby — attends que l'admin lance la partie !</p>
-            </div>
+            <button
+              onClick={toggleReady}
+              style={{
+                width:'100%', padding:'14px',
+                backgroundColor: isReady ? '#f0fdf4' : '#111',
+                color: isReady ? '#16a34a' : '#fff',
+                border: isReady ? '1px solid #dcfce7' : 'none',
+                borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer'
+              }}
+            >
+              {isReady ? '✓ Prêt — cliquer pour annuler' : 'Je suis prêt'}
+            </button>
             <button
               onClick={leaveRoom}
               style={{width:'100%', padding:'12px', backgroundColor:'transparent', color:'#999', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'13px', cursor:'pointer'}}

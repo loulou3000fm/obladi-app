@@ -127,21 +127,19 @@ export default function HostRoom() {
 
   async function startGame() {
     setLoading(true)
-    const supabase = createClient()
-    const now = new Date().toISOString()
-    await supabase.from('rooms').update({
-      status: 'playing',
-      phase: 'intro',
-      phase_started_at: now,
-      current_song_index: 0,
-      started_at: now
-    }).eq('id', roomRef.current.id)
+    const res = await fetch('/api/start-game', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room_id: roomRef.current.id })
+    })
+    if (!res.ok) { setLoading(false); return }
+    const { phase_started_at } = await res.json()
     gamePhaseRef.current = 'intro'
-    phaseStartedAtRef.current = now
+    phaseStartedAtRef.current = phase_started_at
     currentIndexRef.current = 0
     setPhase('playing')
     setGamePhase('intro')
-    setPhaseStartedAt(now)
+    setPhaseStartedAt(phase_started_at)
     setCurrentIndex(0)
     setLoading(false)
   }

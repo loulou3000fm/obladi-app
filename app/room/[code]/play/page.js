@@ -71,6 +71,8 @@ export default function Play() {
         const { data: freshRoom } = await supabase.from('rooms').select('status, current_song_index, phase, phase_started_at').eq('id', roomRef.current.id).single()
         if (!freshRoom) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
 
+        console.log('poll:', freshRoom.phase, freshRoom.phase_started_at, freshRoom.current_song_index)
+
         if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
         if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
 

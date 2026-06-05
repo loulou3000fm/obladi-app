@@ -23,8 +23,7 @@ export default function HostRoom() {
   const gamePhaseRef = useRef('intro')
   const phaseStartedAtRef = useRef(null)
   const currentIndexRef = useRef(0)
-  const lastWrittenRef = useRef(null)
-  const phaseTickRef = useRef(null)
+  const tickFnRef = useRef(null)
 
   useEffect(() => {
     let pollInterval
@@ -71,58 +70,56 @@ export default function HostRoom() {
   }, [code])
 
   useEffect(() => {
-    if (phase !== 'playing' || !['intro', 'playing', 'reveal'].includes(gamePhase)) return
-    async function tick() {
+    const interval = setInterval(() => {
+      if (!phaseStartedAtRef.current) return
       const gp = gamePhaseRef.current
       const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
-      const remaining = remainingSeconds(phaseStartedAtRef.current, duration)
-      setCountdown(Math.ceil(remaining))
-      if (remaining > 0) return
-      const key = `${gp}_${currentIndexRef.current}`
-      if (lastWrittenRef.current === key) return
-      lastWrittenRef.current = key
-      const supabase = createClient()
-      const now = new Date().toISOString()
-      const idx = currentIndexRef.current
-      const total = songsRef.current.length
-      if (gp === 'intro') {
-        gamePhaseRef.current = 'playing'
-        phaseStartedAtRef.current = now
-        setGamePhase('playing')
-        setPhaseStartedAt(now)
-        await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now }).eq('id', roomRef.current.id)
-      } else if (gp === 'playing') {
-        gamePhaseRef.current = 'reveal'
-        phaseStartedAtRef.current = now
-        setGamePhase('reveal')
-        setPhaseStartedAt(now)
-        await supabase.from('rooms').update({ phase: 'reveal', phase_started_at: now }).eq('id', roomRef.current.id)
-      } else if (gp === 'reveal') {
-        if (idx + 1 < total) {
-          const nextIdx = idx + 1
-          gamePhaseRef.current = 'playing'
-          phaseStartedAtRef.current = now
-          currentIndexRef.current = nextIdx
-          setGamePhase('playing')
-          setPhaseStartedAt(now)
-          setCurrentIndex(nextIdx)
-          await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now, current_song_index: nextIdx }).eq('id', roomRef.current.id)
-        } else {
-          await supabase.from('rooms').update({ status: 'finished', phase: 'finished' }).eq('id', roomRef.current.id)
-          setPhase('finished')
-          router.push(`/admin/room/${code}/results`)
-        }
+      setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
+    }, 250)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+
+    async function callTick() {
+      const res = await fetch('/api/game-tick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_code: code })
+      })
+      if (!res.ok) return
+      const data = await res.json()
+
+      if (data.status === 'finished') {
+        setPhase('finished')
+        router.push(`/admin/room/${code}/results`)
+        return
+      }
+
+      if (data.phase && data.phase !== gamePhaseRef.current) {
+        gamePhaseRef.current = data.phase
+        setGamePhase(data.phase)
+      }
+      if (data.phase_started_at && data.phase_started_at !== phaseStartedAtRef.current) {
+        phaseStartedAtRef.current = data.phase_started_at
+        setPhaseStartedAt(data.phase_started_at)
+      }
+      if (typeof data.current_song_index === 'number' && data.current_song_index !== currentIndexRef.current) {
+        currentIndexRef.current = data.current_song_index
+        setCurrentIndex(data.current_song_index)
       }
     }
-    phaseTickRef.current = tick
-    const interval = setInterval(tick, 250)
-    return () => { clearInterval(interval); phaseTickRef.current = null }
-  }, [phase, gamePhase])
+
+    tickFnRef.current = callTick
+    const interval = setInterval(callTick, 500)
+    return () => { clearInterval(interval); tickFnRef.current = null }
+  }, [phase])
 
   useEffect(() => {
     function handleVisibility() {
       if (document.visibilityState !== 'visible') return
-      if (phaseTickRef.current) phaseTickRef.current()
+      if (tickFnRef.current) tickFnRef.current()
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
@@ -142,7 +139,6 @@ export default function HostRoom() {
     gamePhaseRef.current = 'intro'
     phaseStartedAtRef.current = now
     currentIndexRef.current = 0
-    lastWrittenRef.current = null
     setPhase('playing')
     setGamePhase('intro')
     setPhaseStartedAt(now)

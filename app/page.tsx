@@ -1,22 +1,29 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const router = useRouter()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const hash = window.location.hash
-    if (!hash.includes('access_token')) return
 
-    async function handleTokenInHash() {
-      const supabase = createClient()
+    const supabase = createClient()
+
+    async function init() {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) router.push('/dashboard')
+
+      const hash = window.location.hash
+      if (hash.includes('access_token')) {
+        if (session) router.push('/dashboard')
+        return
+      }
+
+      setIsLoggedIn(!!session)
     }
-    handleTokenInHash()
+    init()
   }, [])
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#ffffff', fontFamily:'system-ui, sans-serif'}}>
@@ -29,8 +36,26 @@ export default function Home() {
           <span style={{fontSize:'13px', color:'#999'}}>app</span>
         </div>
         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-          <a href="/login" style={{fontSize:'14px', color:'#666', textDecoration:'none'}}>Se connecter</a>
-          <a href="/signup" style={{fontSize:'14px', backgroundColor:'#111', color:'#fff', padding:'8px 18px', borderRadius:'8px', textDecoration:'none'}}>Créer un compte</a>
+          {isLoggedIn ? (
+            <>
+              <a href="/dashboard" style={{fontSize:'14px', color:'#666', textDecoration:'none'}}>Mon espace</a>
+              <button
+                onClick={async () => {
+                  const supabase = createClient()
+                  await supabase.auth.signOut()
+                  window.location.reload()
+                }}
+                style={{fontSize:'14px', backgroundColor:'#111', color:'#fff', padding:'8px 18px', borderRadius:'8px', border:'none', cursor:'pointer'}}
+              >
+                Se déconnecter
+              </button>
+            </>
+          ) : (
+            <>
+              <a href="/login" style={{fontSize:'14px', color:'#666', textDecoration:'none'}}>Se connecter</a>
+              <a href="/signup" style={{fontSize:'14px', backgroundColor:'#111', color:'#fff', padding:'8px 18px', borderRadius:'8px', textDecoration:'none'}}>Créer un compte</a>
+            </>
+          )}
         </div>
       </nav>
 

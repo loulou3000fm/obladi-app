@@ -30,9 +30,10 @@ export default function Play() {
   const submittedRef = useRef(false)
   const myScoreRef = useRef(0)
   const pollFnRef = useRef(null)
+  const pollTimeoutRef = useRef(null)
 
   useEffect(() => {
-    let pollInterval
+    let stopped = false
 
     async function init() {
       const supabase = createClient()
@@ -65,13 +66,13 @@ export default function Play() {
       setPlayers(playersData || [])
 
       async function doPoll() {
-        if (!roomRef.current) return
+        if (!roomRef.current) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
         const supabase = createClient()
         const { data: freshRoom } = await supabase.from('rooms').select('status, current_song_index, phase, phase_started_at').eq('id', roomRef.current.id).single()
-        if (!freshRoom) return
+        if (!freshRoom) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
 
-        if (freshRoom.status === 'finished') { clearInterval(pollInterval); router.push(`/room/${code}/results`); return }
-        if (freshRoom.status === 'interrupted') { clearInterval(pollInterval); router.push(`/room/${code}/interrupted`); return }
+        if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
+        if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
 
         if (freshRoom.phase !== gamePhaseRef.current) {
           gamePhaseRef.current = freshRoom.phase
@@ -92,13 +93,14 @@ export default function Play() {
 
         const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
         setPlayers(freshPlayers || [])
+        if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500)
       }
       pollFnRef.current = doPoll
-      pollInterval = setInterval(doPoll, 2000)
+      doPoll()
     }
 
     init()
-    return () => { clearInterval(pollInterval) }
+    return () => { stopped = true; clearTimeout(pollTimeoutRef.current); pollFnRef.current = null }
   }, [code])
 
   useEffect(() => {
@@ -116,6 +118,7 @@ export default function Play() {
       const gp = gamePhaseRef.current
       const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
       setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
+      clearTimeout(pollTimeoutRef.current)
       if (pollFnRef.current) pollFnRef.current()
     }
     document.addEventListener('visibilitychange', handleVisibility)

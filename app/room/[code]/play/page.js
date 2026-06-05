@@ -68,7 +68,7 @@ export default function Play() {
       async function doPoll() {
         if (!roomRef.current) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rooms?code=eq.${roomRef.current.code}&select=status,current_song_index,phase,phase_started_at`,
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rooms?code=eq.${roomRef.current.code}&select=status,current_song_index,phase,phase_started_at&_t=${Date.now()}`,
           {
             headers: {
               'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

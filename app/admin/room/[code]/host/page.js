@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
+import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds } from '../../../../../lib/game'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -14,8 +15,15 @@ export default function HostRoom() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [phase, setPhase] = useState('waiting')
   const [loading, setLoading] = useState(false)
+  const [gamePhase, setGamePhase] = useState('intro')
+  const [phaseStartedAt, setPhaseStartedAt] = useState(null)
+  const [countdown, setCountdown] = useState(INTRO_DURATION)
   const roomRef = useRef(null)
   const songsRef = useRef([])
+  const gamePhaseRef = useRef('intro')
+  const phaseStartedAtRef = useRef(null)
+  const currentIndexRef = useRef(0)
+  const lastWrittenRef = useRef(null)
 
   useEffect(() => {
     let pollInterval
@@ -26,8 +34,16 @@ export default function HostRoom() {
       if (!roomData) return
       setRoom(roomData)
       roomRef.current = roomData
-      setCurrentIndex(roomData.current_song_index || 0)
+      const startIdx = roomData.current_song_index || 0
+      setCurrentIndex(startIdx)
+      currentIndexRef.current = startIdx
       setPhase(roomData.status)
+      if (roomData.phase && roomData.phase !== 'waiting') {
+        setGamePhase(roomData.phase)
+        gamePhaseRef.current = roomData.phase
+        setPhaseStartedAt(roomData.phase_started_at)
+        phaseStartedAtRef.current = roomData.phase_started_at
+      }
 
       const { data: songsData } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('created_at')
       setSongs(songsData || [])
@@ -53,35 +69,78 @@ export default function HostRoom() {
     return () => { clearInterval(pollInterval) }
   }, [code])
 
+  useEffect(() => {
+    if (phase !== 'playing' || !['intro', 'playing', 'reveal'].includes(gamePhase)) return
+    const interval = setInterval(async () => {
+      const gp = gamePhaseRef.current
+      const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
+      const remaining = remainingSeconds(phaseStartedAtRef.current, duration)
+      setCountdown(Math.ceil(remaining))
+      if (remaining > 0) return
+      const key = `${gp}_${currentIndexRef.current}`
+      if (lastWrittenRef.current === key) return
+      lastWrittenRef.current = key
+      const supabase = createClient()
+      const now = new Date().toISOString()
+      const idx = currentIndexRef.current
+      const total = songsRef.current.length
+      if (gp === 'intro') {
+        gamePhaseRef.current = 'playing'
+        phaseStartedAtRef.current = now
+        setGamePhase('playing')
+        setPhaseStartedAt(now)
+        await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now }).eq('id', roomRef.current.id)
+      } else if (gp === 'playing') {
+        gamePhaseRef.current = 'reveal'
+        phaseStartedAtRef.current = now
+        setGamePhase('reveal')
+        setPhaseStartedAt(now)
+        await supabase.from('rooms').update({ phase: 'reveal', phase_started_at: now }).eq('id', roomRef.current.id)
+      } else if (gp === 'reveal') {
+        if (idx + 1 < total) {
+          const nextIdx = idx + 1
+          gamePhaseRef.current = 'playing'
+          phaseStartedAtRef.current = now
+          currentIndexRef.current = nextIdx
+          setGamePhase('playing')
+          setPhaseStartedAt(now)
+          setCurrentIndex(nextIdx)
+          await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now, current_song_index: nextIdx }).eq('id', roomRef.current.id)
+        } else {
+          await supabase.from('rooms').update({ status: 'finished', phase: 'finished' }).eq('id', roomRef.current.id)
+          setPhase('finished')
+          router.push(`/admin/room/${code}/results`)
+        }
+      }
+    }, 250)
+    return () => clearInterval(interval)
+  }, [phase, gamePhase])
+
   async function startGame() {
     setLoading(true)
     const supabase = createClient()
+    const now = new Date().toISOString()
     await supabase.from('rooms').update({
       status: 'playing',
+      phase: 'intro',
+      phase_started_at: now,
       current_song_index: 0,
-      started_at: new Date().toISOString()
+      started_at: now
     }).eq('id', roomRef.current.id)
+    gamePhaseRef.current = 'intro'
+    phaseStartedAtRef.current = now
+    currentIndexRef.current = 0
+    lastWrittenRef.current = null
     setPhase('playing')
+    setGamePhase('intro')
+    setPhaseStartedAt(now)
     setCurrentIndex(0)
-    setLoading(false)
-  }
-
-  async function nextSong() {
-    setLoading(true)
-    const supabase = createClient()
-    const next = currentIndex + 1
-    if (next >= songsRef.current.length) {
-      await endGame()
-      return
-    }
-    await supabase.from('rooms').update({ current_song_index: next }).eq('id', roomRef.current.id)
-    setCurrentIndex(next)
     setLoading(false)
   }
 
   async function endGame() {
     const supabase = createClient()
-    await supabase.from('rooms').update({ status: 'finished' }).eq('id', roomRef.current.id)
+    await supabase.from('rooms').update({ status: 'finished', phase: 'finished' }).eq('id', roomRef.current.id)
     setPhase('finished')
     setLoading(false)
     router.push(`/admin/room/${code}/results`)
@@ -176,10 +235,18 @@ export default function HostRoom() {
             )}
             {phase === 'playing' && (
               <>
-                <button onClick={nextSong} disabled={loading}
-                  style={{width:'100%', padding:'16px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:'500', cursor:'pointer'}}>
-                  {loading ? '...' : currentIndex + 1 >= songs.length ? '🏁 Terminer la partie' : `Question suivante → (${currentIndex + 2}/${songs.length})`}
-                </button>
+                <div style={{padding:'20px', backgroundColor:'#f8f8f8', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                  <div>
+                    <p style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'4px'}}>
+                      {gamePhase === 'intro' ? 'Intro' : gamePhase === 'playing' ? 'Écoute' : 'Révélation'}
+                    </p>
+                    <p style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>Morceau {currentIndex + 1} / {songs.length}</p>
+                  </div>
+                  <div>
+                    <span style={{fontSize:'48px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111'}}>{countdown}</span>
+                    <span style={{fontSize:'14px', color:'#999', marginLeft:'2px'}}>s</span>
+                  </div>
+                </div>
                 <button onClick={endGame}
                   style={{width:'100%', padding:'12px', backgroundColor:'transparent', color:'#3b82f6', border:'1px solid #bfdbfe', borderRadius:'8px', fontSize:'13px', cursor:'pointer'}}>
                   ✓ Clore la partie maintenant (résultats affichés)

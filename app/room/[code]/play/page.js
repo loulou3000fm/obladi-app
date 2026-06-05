@@ -67,20 +67,8 @@ export default function Play() {
 
       async function doPoll() {
         if (!roomRef.current) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rooms?code=eq.${roomRef.current.code}&select=status,current_song_index,phase,phase_started_at&_t=${Date.now()}`,
-          {
-            headers: {
-              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-              'Cache-Control': 'no-cache, no-store',
-              'Pragma': 'no-cache'
-            },
-            cache: 'no-store'
-          }
-        )
-        const rows = await response.json()
-        const freshRoom = rows?.[0]
+        const response = await fetch(`/api/room-state?code=${roomRef.current.code}`, { cache: 'no-store' })
+        const freshRoom = await response.json()
         if (!freshRoom) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
 
         console.log('poll:', freshRoom.phase, freshRoom.phase_started_at, freshRoom.current_song_index)

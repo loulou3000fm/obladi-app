@@ -24,8 +24,6 @@ export async function POST(request) {
     const duration = room.phase === 'intro' ? INTRO_DURATION : room.phase === 'playing' ? PLAY_DURATION : REVEAL_DURATION
     const remaining = remainingSeconds(room.phase_started_at, duration)
 
-    console.log('tick called, room phase:', room?.phase, 'remaining:', remaining)
-
     if (remaining > 0) {
       return NextResponse.json({
         status: room.status,
@@ -39,13 +37,11 @@ export async function POST(request) {
     const now = new Date().toISOString()
 
     if (room.phase === 'intro') {
-      console.log('transition: intro -> playing, index:', room.current_song_index)
       await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now }).eq('id', room.id)
       return NextResponse.json({ status: 'playing', phase: 'playing', phase_started_at: now, current_song_index: room.current_song_index, remaining: PLAY_DURATION })
     }
 
     if (room.phase === 'playing') {
-      console.log('transition: playing -> reveal, index:', room.current_song_index)
       await supabase.from('rooms').update({ phase: 'reveal', phase_started_at: now }).eq('id', room.id)
       return NextResponse.json({ status: 'playing', phase: 'reveal', phase_started_at: now, current_song_index: room.current_song_index, remaining: REVEAL_DURATION })
     }
@@ -54,11 +50,9 @@ export async function POST(request) {
       const { count } = await supabase.from('songs').select('*', { count: 'exact', head: true }).eq('playlist_id', room.playlist_id)
       const nextIndex = room.current_song_index + 1
       if (nextIndex < count) {
-        console.log('transition: reveal -> playing, index:', nextIndex)
         await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now, current_song_index: nextIndex }).eq('id', room.id)
         return NextResponse.json({ status: 'playing', phase: 'playing', phase_started_at: now, current_song_index: nextIndex, remaining: PLAY_DURATION })
       } else {
-        console.log('transition: reveal -> finished')
         await supabase.from('rooms').update({ status: 'finished', phase: 'finished' }).eq('id', room.id)
         return NextResponse.json({ status: 'finished', phase: 'finished', current_song_index: room.current_song_index, remaining: 0 })
       }

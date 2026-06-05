@@ -71,9 +71,6 @@ export default function Play() {
         const freshRoom = await response.json()
         if (!freshRoom) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
 
-        console.log('poll:', freshRoom.phase, freshRoom.phase_started_at, freshRoom.current_song_index)
-        console.log('phase_started_at ref:', phaseStartedAtRef.current, 'fresh:', freshRoom.phase_started_at)
-
         if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
         if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
 

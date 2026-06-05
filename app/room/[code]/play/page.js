@@ -67,8 +67,8 @@ export default function Play() {
 
       async function doPoll() {
         if (!roomRef.current) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
-        const supabase = createClient()
-        const { data: freshRoom } = await supabase.from('rooms').select('status, current_song_index, phase, phase_started_at').eq('id', roomRef.current.id).single()
+        const freshSupabase = createClient()
+        const { data: freshRoom } = await freshSupabase.from('rooms').select('status, current_song_index, phase, phase_started_at').eq('id', roomRef.current.id).single()
         if (!freshRoom) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
 
         console.log('poll:', freshRoom.phase, freshRoom.phase_started_at, freshRoom.current_song_index)
@@ -93,7 +93,7 @@ export default function Play() {
           setTitleAnswer('')
         }
 
-        const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
+        const { data: freshPlayers } = await freshSupabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
         setPlayers(freshPlayers || [])
         if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500)
       }

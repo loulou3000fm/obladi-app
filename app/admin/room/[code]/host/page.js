@@ -24,6 +24,7 @@ export default function HostRoom() {
   const phaseStartedAtRef = useRef(null)
   const currentIndexRef = useRef(0)
   const lastWrittenRef = useRef(null)
+  const phaseTickRef = useRef(null)
 
   useEffect(() => {
     let pollInterval
@@ -71,7 +72,7 @@ export default function HostRoom() {
 
   useEffect(() => {
     if (phase !== 'playing' || !['intro', 'playing', 'reveal'].includes(gamePhase)) return
-    const interval = setInterval(async () => {
+    async function tick() {
       const gp = gamePhaseRef.current
       const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
       const remaining = remainingSeconds(phaseStartedAtRef.current, duration)
@@ -112,9 +113,20 @@ export default function HostRoom() {
           router.push(`/admin/room/${code}/results`)
         }
       }
-    }, 250)
-    return () => clearInterval(interval)
+    }
+    phaseTickRef.current = tick
+    const interval = setInterval(tick, 250)
+    return () => { clearInterval(interval); phaseTickRef.current = null }
   }, [phase, gamePhase])
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState !== 'visible') return
+      if (phaseTickRef.current) phaseTickRef.current()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
 
   async function startGame() {
     setLoading(true)

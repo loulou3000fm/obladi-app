@@ -29,6 +29,7 @@ export default function Play() {
   const userRef = useRef(null)
   const submittedRef = useRef(false)
   const myScoreRef = useRef(0)
+  const pollFnRef = useRef(null)
 
   useEffect(() => {
     let pollInterval
@@ -63,8 +64,10 @@ export default function Play() {
       const { data: playersData } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomData.id).order('score', { ascending: false })
       setPlayers(playersData || [])
 
-      pollInterval = setInterval(async () => {
-        const { data: freshRoom } = await supabase.from('rooms').select('status, current_song_index, phase, phase_started_at').eq('id', roomData.id).single()
+      async function doPoll() {
+        if (!roomRef.current) return
+        const supabase = createClient()
+        const { data: freshRoom } = await supabase.from('rooms').select('status, current_song_index, phase, phase_started_at').eq('id', roomRef.current.id).single()
         if (!freshRoom) return
 
         if (freshRoom.status === 'finished') { clearInterval(pollInterval); router.push(`/room/${code}/results`); return }
@@ -87,9 +90,11 @@ export default function Play() {
           setTitleAnswer('')
         }
 
-        const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomData.id).order('score', { ascending: false })
+        const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
         setPlayers(freshPlayers || [])
-      }, 2000)
+      }
+      pollFnRef.current = doPoll
+      pollInterval = setInterval(doPoll, 2000)
     }
 
     init()
@@ -103,6 +108,18 @@ export default function Play() {
       setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
     }, 250)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState !== 'visible') return
+      const gp = gamePhaseRef.current
+      const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
+      setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
+      if (pollFnRef.current) pollFnRef.current()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   async function handleSubmit() {

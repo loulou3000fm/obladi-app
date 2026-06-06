@@ -20,6 +20,7 @@ export default function Play() {
   const [submitted, setSubmitted] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
+  const [pastResults, setPastResults] = useState([])
   const roomRef = useRef(null)
   const songsRef = useRef([])
   const currentIndexRef = useRef(0)
@@ -178,6 +179,7 @@ export default function Play() {
     const points = artistPoints + titlePoints + bonusArtist + bonusTitle + bonusBoth
 
     setResult({ artistOk, titleOk, points, song })
+    setPastResults(prev => [...prev, { songIndex: currentIndexRef.current, points }])
 
     await supabase.from('answers').insert({
       room_id: roomRef.current.id,
@@ -344,6 +346,31 @@ export default function Play() {
               </div>
             </div>
           ))}
+
+          {currentIndex > 0 && (
+            <>
+              <div style={{borderTop:'1px solid #f0f0f0', marginTop:'16px', marginBottom:'16px'}} />
+              <p style={{fontSize:'12px', fontWeight:'500', color:'#999', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'12px'}}>Morceaux joués</p>
+              {songsRef.current.slice(0, currentIndex).map((s, i) => {
+                const pr = pastResults.find(r => r.songIndex === i)
+                return (
+                  <div key={s.id} style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px'}}>
+                    {s.cover_url
+                      ? <img src={s.cover_url} width={32} height={32} style={{borderRadius:'4px', flexShrink:0}} referrerPolicy="no-referrer" alt="" />
+                      : <div style={{width:'32px', height:'32px', backgroundColor:'#f0f0f0', borderRadius:'4px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px'}}>🎵</div>
+                    }
+                    <div style={{flex:1, minWidth:0}}>
+                      <p style={{fontSize:'11px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.title}</p>
+                      <p style={{fontSize:'11px', color:'#999', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.artist}</p>
+                    </div>
+                    <span style={{fontSize:'11px', fontWeight:'500', color: pr ? '#16a34a' : '#ccc', flexShrink:0}}>
+                      {pr ? `+${pr.points}` : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
       </div>
     </main>

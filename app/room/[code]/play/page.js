@@ -15,7 +15,6 @@ export default function Play() {
   const [players, setPlayers] = useState([])
   const [gamePhase, setGamePhase] = useState('intro')
   const [countdown, setCountdown] = useState(INTRO_DURATION)
-  const [audioUnlocked, setAudioUnlocked] = useState(false)
   const [artistAnswer, setArtistAnswer] = useState('')
   const [titleAnswer, setTitleAnswer] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -163,19 +162,6 @@ export default function Play() {
     }
   }
 
-  if (!audioUnlocked) return (
-    <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif', display:'flex', alignItems:'center', justifyContent:'center'}}>
-      <div style={{textAlign:'center', maxWidth:'400px', padding:'48px'}}>
-        <div style={{fontSize:'64px', marginBottom:'24px'}}>🎵</div>
-        <h1 style={{fontSize:'24px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'8px'}}>La partie commence !</h1>
-        <p style={{fontSize:'14px', color:'#666', marginBottom:'32px', lineHeight:'1.6'}}>Clique pour activer l'audio et démarrer le blindtest. Monte le son !</p>
-        <button onClick={() => setAudioUnlocked(true)} style={{width:'100%', padding:'16px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor:'pointer'}}>
-          🎧 Démarrer le blindtest
-        </button>
-      </div>
-    </main>
-  )
-
   if (!room || songsRef.current.length === 0) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui'}}>
       <p style={{color:'#999', fontSize:'14px'}}>Chargement...</p>
@@ -189,7 +175,7 @@ export default function Play() {
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
 
-      {audioUnlocked && gamePhase === 'playing' && currentSong?.youtube_id && (
+      {gamePhase === 'playing' && currentSong?.youtube_id && (
         <div style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}}>
           <iframe
             key={currentIndex}

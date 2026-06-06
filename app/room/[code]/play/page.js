@@ -74,6 +74,14 @@ export default function Play() {
         if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
         if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
 
+        if (freshRoom.status === 'playing' && ['intro', 'playing', 'reveal'].includes(freshRoom.phase)) {
+          fetch('/api/game-tick', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_code: roomRef.current.code })
+          }).catch(() => {})
+        }
+
         phaseStartedAtRef.current = freshRoom.phase_started_at
         if (freshRoom.phase !== gamePhaseRef.current) {
           gamePhaseRef.current = freshRoom.phase

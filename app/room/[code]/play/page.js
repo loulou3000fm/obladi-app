@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, calculatePoints } from '../../../../lib/game'
+import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer } from '../../../../lib/game'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -135,14 +135,50 @@ export default function Play() {
     if (submittedRef.current) return
     const song = songsRef.current[currentIndexRef.current]
     if (!song) return
-    const timeLeft = remainingSeconds(phaseStartedAtRef.current, PLAY_DURATION)
     const artistOk = checkAnswer(artistAnswer, song.artist)
     const titleOk = checkAnswer(titleAnswer, song.title)
-    const points = calculatePoints(artistOk, timeLeft, PLAY_DURATION) + calculatePoints(titleOk, timeLeft, PLAY_DURATION)
     submittedRef.current = true
     setSubmitted(true)
-    setResult({ artistOk, titleOk, points, song })
+
     const supabase = createClient()
+
+    const artistPoints = artistOk ? 5 : 0
+    const titlePoints = titleOk ? 5 : 0
+
+    let bonusArtist = 0
+    let bonusTitle = 0
+    let bonusBoth = 0
+
+    if (artistOk) {
+      const { count } = await supabase.from('answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', roomRef.current.id)
+        .eq('song_id', song.id)
+        .eq('artist_correct', true)
+      if (count === 0) bonusArtist = 1
+    }
+    if (titleOk) {
+      const { count } = await supabase.from('answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', roomRef.current.id)
+        .eq('song_id', song.id)
+        .eq('title_correct', true)
+      if (count === 0) bonusTitle = 1
+    }
+    if (artistOk && titleOk) {
+      const { count } = await supabase.from('answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', roomRef.current.id)
+        .eq('song_id', song.id)
+        .eq('artist_correct', true)
+        .eq('title_correct', true)
+      if (count === 0) bonusBoth = 1
+    }
+
+    const points = artistPoints + titlePoints + bonusArtist + bonusTitle + bonusBoth
+
+    setResult({ artistOk, titleOk, points, song })
+
     await supabase.from('answers').insert({
       room_id: roomRef.current.id,
       player_id: userRef.current.id,

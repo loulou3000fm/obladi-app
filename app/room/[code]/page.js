@@ -130,7 +130,15 @@ export default function RoomLobby() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .lobby-nav { padding: 16px 24px !important; }
+          .lobby-container { padding: 24px 16px !important; }
+          .lobby-players { flex-direction: column !important; }
+          .lobby-player { width: 100% !important; box-sizing: border-box; }
+        }
+      `}</style>
+      <nav className="lobby-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/dashboard" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
@@ -142,7 +150,7 @@ export default function RoomLobby() {
         </div>
       </nav>
 
-      <div style={{maxWidth:'600px', margin:'0 auto', padding:'48px'}}>
+      <div className="lobby-container" style={{maxWidth:'600px', margin:'0 auto', padding:'48px'}}>
         <div style={{textAlign:'center', marginBottom:'40px'}}>
           <p style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'8px'}}>Playlist</p>
           <h1 style={{fontSize:'28px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'4px'}}>{room.playlists?.name}</h1>
@@ -151,9 +159,9 @@ export default function RoomLobby() {
 
         <div style={{marginBottom:'32px'}}>
           <p style={{fontSize:'13px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>{players.length} joueur{players.length > 1 ? 's' : ''} dans le lobby</p>
-          <div style={{display:'flex', flexWrap:'wrap', gap:'8px'}}>
+          <div className="lobby-players" style={{display:'flex', flexWrap:'wrap', gap:'8px'}}>
             {players.map(p => (
-              <div key={p.id} style={{display:'flex', alignItems:'center', gap:'8px', padding:'8px 12px', backgroundColor:'#f8f8f8', borderRadius:'8px', border: p.is_ready ? '1px solid #dcfce7' : '1px solid transparent'}}>
+              <div key={p.id} className="lobby-player" style={{display:'flex', alignItems:'center', gap:'8px', padding:'8px 12px', backgroundColor:'#f8f8f8', borderRadius:'8px', border: p.is_ready ? '1px solid #dcfce7' : '1px solid transparent'}}>
                 <span style={{fontSize:'20px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
                 <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>{p.profiles?.pseudo}</span>
                 <span style={{fontSize:'12px', color: p.is_ready ? '#16a34a' : '#ccc'}}>{p.is_ready ? '✓' : '○'}</span>

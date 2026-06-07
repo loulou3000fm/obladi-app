@@ -85,6 +85,12 @@ export default function NewRoom() {
               >
                 {loading ? 'Création...' : 'Créer la room →'}
               </button>
+              <button
+                onClick={() => router.push('/admin')}
+                style={{width:'100%', padding:'12px', backgroundColor:'transparent', color:'#999', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'13px', cursor:'pointer'}}
+              >
+                Annuler
+              </button>
             </div>
           </>
         ) : (

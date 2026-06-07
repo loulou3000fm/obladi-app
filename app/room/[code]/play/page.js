@@ -336,13 +336,6 @@ export default function Play() {
                   {titleFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Titre trouvé !</p>}
                   {titleFeedback === 'close' && <p style={{fontSize:'12px', color:'#ea580c', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>Pas loin !</p>}
                 </div>
-                <button
-                  onClick={handleFiger}
-                  disabled={frozen || (!artistAnswer && !titleAnswer)}
-                  style={{width:'100%', padding:'14px', backgroundColor: frozen ? '#f0fdf4' : (artistAnswer || titleAnswer) ? '#111' : '#ccc', color: frozen ? '#16a34a' : '#fff', border: frozen ? '1px solid #dcfce7' : 'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor: frozen ? 'default' : (artistAnswer || titleAnswer) ? 'pointer' : 'default'}}
-                >
-                  {frozen ? '✓ Réponse figée' : 'Figer ma réponse'}
-                </button>
               </div>
             </>
           )}
@@ -350,7 +343,7 @@ export default function Play() {
           {gamePhase === 'reveal' && (
             <>
               <p style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'24px'}}>Révélation</p>
-              <div style={{textAlign:'center', marginBottom:'24px'}}>
+              <div style={{textAlign:'center', marginBottom:'24px', display:'flex', flexDirection:'column', alignItems:'center'}}>
                 {currentSong?.cover_url
                   ? <img src={currentSong.cover_url} width={100} height={100} style={{borderRadius:'12px', marginBottom:'16px'}} referrerPolicy="no-referrer" alt="" />
                   : <div style={{width:'100px', height:'100px', backgroundColor:'#f0f0f0', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'36px', margin:'0 auto 16px'}}>🎤</div>

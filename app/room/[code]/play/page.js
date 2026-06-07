@@ -342,7 +342,7 @@ export default function Play() {
                     onChange={handleArtistChange}
                     placeholder="Artiste..."
                     disabled={frozen}
-                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#16a34a' : artistFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#16a34a' : artistFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor:'#fff'}}
                     onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
                     autoFocus
                   />
@@ -355,7 +355,7 @@ export default function Play() {
                     onChange={handleTitleChange}
                     placeholder="Titre..."
                     disabled={frozen}
-                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#16a34a' : titleFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#16a34a' : titleFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor:'#fff'}}
                     onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
                   />
                   {titleFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Titre trouvé !</p>}

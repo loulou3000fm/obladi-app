@@ -59,7 +59,14 @@ export default function Stats() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .stats-nav { padding: 16px 24px !important; }
+          .stats-container { padding: 24px 16px !important; }
+          .stats-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+      <nav className="stats-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
@@ -73,12 +80,12 @@ export default function Stats() {
         </div>
       </nav>
 
-      <div style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
+      <div className="stats-container" style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
 
         {/* Section 1 — Stats globales */}
         <h1 style={{fontSize:'24px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'24px'}}>Stats globales</h1>
 
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'24px'}}>
+        <div className="stats-grid" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'24px'}}>
           <div style={{padding:'24px', border:'1px solid #f0f0f0', borderRadius:'12px'}}>
             <h2 style={{fontSize:'15px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>🔥 Top 5 les plus trouvées</h2>
             {data.topFound.length === 0

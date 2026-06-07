@@ -68,7 +68,16 @@ export default function Results() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .res-nav { padding: 16px 24px !important; }
+          .res-container { padding: 24px 16px !important; }
+          .res-row { padding: 10px 14px !important; }
+          .res-table p { font-size: 13px !important; }
+          .res-actions { flex-direction: column !important; }
+        }
+      `}</style>
+      <nav className="res-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'baseline', gap:'2px'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
@@ -77,7 +86,7 @@ export default function Results() {
         <span style={{fontSize:'13px', color:'#999'}}>{room?.playlists?.name}</span>
       </nav>
 
-      <div style={{maxWidth:'600px', margin:'0 auto', padding:'48px'}}>
+      <div className="res-container" style={{maxWidth:'600px', margin:'0 auto', padding:'48px'}}>
         <div style={{textAlign:'center', marginBottom:'48px'}}>
           <div style={{fontSize:'48px', marginBottom:'16px'}}>🏁</div>
           <h1 style={{fontSize:'32px', fontWeight:'500', letterSpacing:'-1px', color:'#111', marginBottom:'8px'}}>Résultats finals</h1>
@@ -105,9 +114,9 @@ export default function Results() {
         )}
 
         {/* Classement complet */}
-        <div style={{border:'1px solid #f0f0f0', borderRadius:'12px', overflow:'hidden', marginBottom:'32px'}}>
+        <div className="res-table" style={{border:'1px solid #f0f0f0', borderRadius:'12px', overflow:'hidden', marginBottom:'32px'}}>
           {players.map((p, i) => (
-            <div key={p.id} style={{display:'flex', alignItems:'center', gap:'12px', padding:'14px 20px', borderBottom: i < players.length - 1 ? '1px solid #f8f8f8' : 'none', backgroundColor: i === 0 ? '#fffbeb' : 'white'}}>
+            <div key={p.id} className="res-row" style={{display:'flex', alignItems:'center', gap:'12px', padding:'14px 20px', borderBottom: i < players.length - 1 ? '1px solid #f8f8f8' : 'none', backgroundColor: i === 0 ? '#fffbeb' : 'white'}}>
               <span style={{fontSize:'18px', width:'24px', textAlign:'center'}}>{MEDALS[i] || i + 1}</span>
               <span style={{fontSize:'24px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
               <div style={{flex:1}}>
@@ -118,7 +127,7 @@ export default function Results() {
           ))}
         </div>
 
-        <div style={{display:'flex', gap:'8px'}}>
+        <div className="res-actions" style={{display:'flex', gap:'8px'}}>
           <a href="/dashboard" style={{flex:1, padding:'12px', backgroundColor:'#111', color:'#fff', borderRadius:'8px', fontSize:'14px', fontWeight:'500', textDecoration:'none', textAlign:'center'}}>
             Mon profil
           </a>

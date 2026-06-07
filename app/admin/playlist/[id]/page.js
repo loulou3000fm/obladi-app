@@ -176,7 +176,18 @@ export default function PlaylistAdmin() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .pl-nav { padding: 16px 24px !important; }
+          .pl-container { padding: 24px 16px !important; }
+          .pl-import-row { flex-direction: column !important; }
+          .pl-song { flex-wrap: wrap !important; }
+          .pl-song-actions { width: 100% !important; flex-wrap: wrap !important; justify-content: flex-start !important; }
+          .pl-yt-edit { width: 100% !important; }
+          .pl-yt-input { flex: 1 !important; width: auto !important; min-width: 0 !important; }
+        }
+      `}</style>
+      <nav className="pl-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'center', gap:'16px'}}>
           <button onClick={() => router.push('/admin')} style={{background:'none', border:'none', cursor:'pointer', fontSize:'14px', color:'#666'}}>← Admin</button>
           <span style={{color:'#e0e0e0'}}>/</span>
@@ -185,13 +196,13 @@ export default function PlaylistAdmin() {
         <span style={{fontSize:'13px', color:'#999'}}>{songs.length} chansons</span>
       </nav>
 
-      <div style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
+      <div className="pl-container" style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
 
         {/* Import Spotify */}
         <div style={{padding:'24px', backgroundColor:'#f8f8f8', borderRadius:'12px', marginBottom:'32px'}}>
           <h3 style={{fontSize:'14px', fontWeight:'500', color:'#111', margin:'0 0 4px'}}>Importer une playlist Deezer</h3>
           <p style={{fontSize:'12px', color:'#999', margin:'0 0 12px'}}>Les métadonnées et previews viennent de Deezer, le reveal depuis YouTube.</p>
-          <div style={{display:'flex', gap:'8px'}}>
+          <div className="pl-import-row" style={{display:'flex', gap:'8px'}}>
             <input
               placeholder="https://www.deezer.com/fr/playlist/..."
               value={spotifyUrl}
@@ -269,6 +280,7 @@ export default function PlaylistAdmin() {
                   onDragOver={e => handleDragOver(e, i)}
                   onDrop={e => handleDrop(e, i)}
                   onDragEnd={handleDragEnd}
+                  className="pl-song"
                   style={{display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', borderBottom: i < songs.length-1 ? '1px solid #f8f8f8' : 'none', backgroundColor: dragOverIndex === i && dragIndex !== i ? '#f0f9ff' : '#fff', opacity: dragIndex === i ? 0.4 : 1}}
                 >
                   <div style={{cursor:'grab', color:'#ccc', fontSize:'18px', flexShrink:0, userSelect:'none', lineHeight:1}} title="Glisser pour réordonner">⠿</div>
@@ -287,7 +299,7 @@ export default function PlaylistAdmin() {
                     <p style={{fontSize:'13px', fontWeight:'500', color:'#111', margin:'0 0 2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{song.title}</p>
                     <p style={{fontSize:'12px', color:'#999', margin:0}}>{song.artist} · {song.album}</p>
                   </div>
-                  <div style={{display:'flex', alignItems:'center', gap:'6px', flexShrink:0}}>
+                  <div className="pl-song-actions" style={{display:'flex', alignItems:'center', gap:'6px', flexShrink:0}}>
                     {song.youtube_id ? (
                       <span style={{fontSize:'11px', color:'#1D9E75', backgroundColor:'#E1F5EE', padding:'2px 8px', borderRadius:'99px'}}>▶ YouTube</span>
                     ) : (
@@ -312,11 +324,12 @@ export default function PlaylistAdmin() {
                       {playingId === song.id ? '⏸ Stop' : '▶ Preview'}
                     </button>
                     {editingYoutube === song.id ? (
-                      <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
+                      <div className="pl-yt-edit" style={{display:'flex', gap:'4px', alignItems:'center'}}>
                         <input
                           value={youtubeInput}
                           onChange={e => setYoutubeInput(e.target.value)}
                           placeholder="URL ou ID YouTube..."
+                          className="pl-yt-input"
                           style={{padding:'4px 8px', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', width:'180px', outline:'none'}}
                           onKeyDown={e => e.key === 'Enter' && updateYoutubeId(song.id)}
                           autoFocus

@@ -43,7 +43,13 @@ export default function NewRoom() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .nr-nav { padding: 16px 24px !important; }
+          .nr-container { padding: 24px 16px !important; }
+        }
+      `}</style>
+      <nav className="nr-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
@@ -52,7 +58,7 @@ export default function NewRoom() {
         <span style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em'}}>Admin · Nouvelle room</span>
       </nav>
 
-      <div style={{maxWidth:'600px', margin:'0 auto', padding:'48px'}}>
+      <div className="nr-container" style={{maxWidth:'600px', margin:'0 auto', padding:'48px'}}>
         {!created ? (
           <>
             <h1 style={{fontSize:'28px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'8px'}}>Créer une room</h1>
@@ -64,13 +70,13 @@ export default function NewRoom() {
                 placeholder="Ex: Soirée années 90, Battle musicale..."
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111'}}
+                style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}}
               />
               <label style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>Playlist</label>
               <select
                 value={selectedPlaylist}
                 onChange={e => setSelectedPlaylist(e.target.value)}
-                style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', backgroundColor:'#fff', color:'#111'}}
+                style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', backgroundColor:'#fff', color:'#111', boxSizing:'border-box'}}
               >
                 <option value="">Sélectionne une playlist...</option>
                 {playlists.map(p => (

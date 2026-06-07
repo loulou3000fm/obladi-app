@@ -180,7 +180,14 @@ export default function HostRoom() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'20px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .host-nav { padding: 16px 24px !important; flex-wrap: wrap !important; gap: 12px !important; }
+          .host-grid { grid-template-columns: 1fr !important; padding: 24px 16px !important; gap: 24px !important; }
+          .host-songs { max-height: 220px !important; }
+        }
+      `}</style>
+      <nav className="host-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'20px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'center', gap:'16px'}}>
           <a href="/admin" style={{fontSize:'14px', color:'#666', textDecoration:'none'}}>← Admin</a>
           <span style={{color:'#e0e0e0'}}>/</span>
@@ -194,7 +201,7 @@ export default function HostRoom() {
         </button>
       </nav>
 
-      <div style={{maxWidth:'900px', margin:'0 auto', padding:'32px 48px', display:'grid', gridTemplateColumns:'1fr 280px', gap:'32px'}}>
+      <div className="host-grid" style={{maxWidth:'900px', margin:'0 auto', padding:'32px 48px', display:'grid', gridTemplateColumns:'1fr 280px', gap:'32px'}}>
         <div>
           {phase === 'waiting' && (
             <div style={{padding:'20px', backgroundColor:'#f8f8f8', borderRadius:'12px', marginBottom:'24px'}}>
@@ -267,7 +274,7 @@ export default function HostRoom() {
 
           <div style={{marginTop:'32px'}}>
             <p style={{fontSize:'13px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>Playlist — {room.playlists?.name}</p>
-            <div style={{border:'1px solid #f0f0f0', borderRadius:'8px', overflow:'hidden', maxHeight:'300px', overflowY:'auto'}}>
+            <div className="host-songs" style={{border:'1px solid #f0f0f0', borderRadius:'8px', overflow:'hidden', maxHeight:'300px', overflowY:'auto'}}>
               {songs.map((s, i) => (
                 <div key={s.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', borderBottom:'1px solid #f8f8f8', backgroundColor: i === currentIndex && phase === 'playing' ? '#f0f9ff' : 'transparent'}}>
                   <span style={{fontSize:'12px', color:'#999', width:'20px'}}>{i + 1}</span>

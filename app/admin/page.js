@@ -76,13 +76,24 @@ export default function Admin() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .admin-nav { padding: 16px 24px !important; }
+          .admin-nav-actions { gap: 6px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
+          .admin-tag { display: none !important; }
+          .admin-container { padding: 24px 16px !important; }
+          .admin-tabs { width: 100% !important; }
+          .admin-tab { flex: 1 !important; }
+          .admin-card { flex-direction: column !important; align-items: stretch !important; }
+        }
+      `}</style>
+      <nav className="admin-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
           <span style={{fontSize:'13px', color:'#999'}}>app</span>
         </a>
-        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+        <div className="admin-nav-actions" style={{display:'flex', alignItems:'center', gap:'8px'}}>
           <a href="/admin/stats"
             style={{padding:'6px 12px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', color:'#999', textDecoration:'none'}}>
             Stats
@@ -110,16 +121,16 @@ export default function Admin() {
           >
             Déconnexion
           </button>
-          <span style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em'}}>Admin</span>
+          <span className="admin-tag" style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em'}}>Admin</span>
         </div>
       </nav>
 
-      <div style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
+      <div className="admin-container" style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
 
         {/* Tabs */}
-        <div style={{display:'flex', gap:'4px', marginBottom:'32px', backgroundColor:'#f8f8f8', padding:'4px', borderRadius:'10px', width:'fit-content'}}>
+        <div className="admin-tabs" style={{display:'flex', gap:'4px', marginBottom:'32px', backgroundColor:'#f8f8f8', padding:'4px', borderRadius:'10px', width:'fit-content'}}>
           {['rooms', 'playlists'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => setActiveTab(tab)} className="admin-tab"
               style={{padding:'8px 20px', borderRadius:'8px', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:'500',
                 backgroundColor: activeTab === tab ? '#fff' : 'transparent',
                 color: activeTab === tab ? '#111' : '#999',
@@ -145,7 +156,7 @@ export default function Admin() {
                 </div>
               )}
               {rooms.map(r => (
-                <div key={r.id} style={{display:'flex', alignItems:'center', padding:'20px 24px', border:'1px solid #f0f0f0', borderRadius:'12px', gap:'16px'}}>
+                <div key={r.id} className="admin-card" style={{display:'flex', alignItems:'center', padding:'20px 24px', border:'1px solid #f0f0f0', borderRadius:'12px', gap:'16px'}}>
                   <div style={{flex:1}}>
                     <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px'}}>
                       <p style={{fontSize:'15px', fontWeight:'500', color:'#111'}}>{r.title || r.playlists?.name}</p>
@@ -213,19 +224,21 @@ export default function Admin() {
 
             <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
               {playlists.map(p => (
-                <div key={p.id} style={{display:'flex', alignItems:'center', padding:'20px 24px', border:'1px solid #f0f0f0', borderRadius:'12px', gap:'16px'}}>
+                <div key={p.id} className="admin-card" style={{display:'flex', alignItems:'center', padding:'20px 24px', border:'1px solid #f0f0f0', borderRadius:'12px', gap:'16px'}}>
                   <div style={{flex:1}}>
                     <p style={{fontSize:'15px', fontWeight:'500', color:'#111', margin:'0 0 4px'}}>{p.name}</p>
                     <p style={{fontSize:'13px', color:'#999', margin:0}}>{p.theme || 'Pas de thème'} · {p.songs_count} chansons</p>
                   </div>
-                  <button onClick={() => router.push(`/admin/playlist/${p.id}`)}
-                    style={{padding:'8px 16px', backgroundColor:'#f8f8f8', border:'1px solid #e8e8e8', borderRadius:'8px', fontSize:'13px', cursor:'pointer', color:'#111'}}>
-                    Gérer →
-                  </button>
-                  <button onClick={() => deletePlaylist(p.id)}
-                    style={{padding:'8px 16px', backgroundColor:'transparent', border:'1px solid #fee2e2', borderRadius:'8px', fontSize:'13px', cursor:'pointer', color:'#ef4444'}}>
-                    Supprimer
-                  </button>
+                  <div style={{display:'flex', gap:'6px'}}>
+                    <button onClick={() => router.push(`/admin/playlist/${p.id}`)}
+                      style={{padding:'8px 16px', backgroundColor:'#f8f8f8', border:'1px solid #e8e8e8', borderRadius:'8px', fontSize:'13px', cursor:'pointer', color:'#111'}}>
+                      Gérer →
+                    </button>
+                    <button onClick={() => deletePlaylist(p.id)}
+                      style={{padding:'8px 16px', backgroundColor:'transparent', border:'1px solid #fee2e2', borderRadius:'8px', fontSize:'13px', cursor:'pointer', color:'#ef4444'}}>
+                      Supprimer
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

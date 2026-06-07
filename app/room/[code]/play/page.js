@@ -20,6 +20,7 @@ export default function Play() {
   const [artistFeedback, setArtistFeedback] = useState(null)
   const [titleFeedback, setTitleFeedback] = useState(null)
   const [frozen, setFrozen] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -315,6 +316,22 @@ export default function Play() {
       <style>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @media (max-width: 768px) {
+          .play-nav { padding: 12px 16px !important; }
+          .play-nav-text { font-size: 11px !important; }
+          .play-content { padding: 24px 16px !important; }
+          .play-intro-title { font-size: 28px !important; }
+          .play-intro-count { font-size: 48px !important; }
+          .play-rules { padding: 12px 16px !important; }
+          .play-mystery { width: 80px !important; height: 80px !important; font-size: 36px !important; }
+          .play-count { font-size: 48px !important; }
+          .play-cover { width: 80px !important; height: 80px !important; }
+          .play-reveal-title { font-size: 18px !important; }
+          .play-table { max-width: 100% !important; }
+          .play-sidebar { display: none !important; }
+          .play-fab { display: flex !important; }
+        }
       `}</style>
 
       {gamePhase === 'playing' && currentSong?.youtube_id && (
@@ -329,15 +346,15 @@ export default function Play() {
         </div>
       )}
 
-      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>
+      <div className="play-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'baseline', gap:'2px'}}>
           <span style={{fontSize:'18px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'18px', fontWeight:'500', color:'#3b82f6'}}>.</span>
         </div>
-        <a href="/dashboard" style={{fontSize:'13px', color:'#999', textDecoration:'none', marginRight:'auto', marginLeft:'16px'}}>← Quitter</a>
+        <a href="/dashboard" className="play-nav-text" style={{fontSize:'13px', color:'#999', textDecoration:'none', marginRight:'auto', marginLeft:'16px'}}>← Quitter</a>
         <div style={{display:'flex', alignItems:'center', gap:'16px'}}>
-          <span style={{fontSize:'13px', color:'#999'}}>Morceau {currentIndex + 1} / {totalSongs}</span>
-          <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>Score : {myScore} pts</span>
+          <span className="play-nav-text" style={{fontSize:'13px', color:'#999'}}>Morceau {currentIndex + 1} / {totalSongs}</span>
+          <span className="play-nav-text" style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>Score : {myScore} pts</span>
         </div>
       </div>
 
@@ -346,18 +363,18 @@ export default function Play() {
       </div>
 
       <div style={{flex:1, display:'flex', overflow:'hidden'}}>
-        <div key={phaseKey} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'48px', animation:'fadeInUp 0.4s ease forwards'}}>
+        <div key={phaseKey} className="play-content" style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'48px', animation:'fadeInUp 0.4s ease forwards'}}>
 
           {gamePhase === 'intro' && (
             <>
               <div style={{fontSize:'72px', marginBottom:'24px'}}>🎵</div>
-              <h1 style={{fontSize:'40px', fontWeight:'500', letterSpacing:'-1px', color:'#111', textAlign:'center', marginBottom:'16px', lineHeight:'1.1'}}>
+              <h1 className="play-intro-title" style={{fontSize:'40px', fontWeight:'500', letterSpacing:'-1px', color:'#111', textAlign:'center', marginBottom:'16px', lineHeight:'1.1'}}>
                 Vous êtes prêts ?<br />Ça va commencer !
               </h1>
-              <div style={{fontSize:'64px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginTop:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
+              <div className="play-intro-count" style={{fontSize:'64px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginTop:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
                 {countdown}<span style={{fontSize:'20px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>
-              <ul style={{listStyle:'none', margin:'32px 0 0', padding:'16px 24px', backgroundColor:'#f8f8f8', borderRadius:'12px', fontSize:'13px', color:'#666', display:'flex', flexDirection:'column', gap:'8px', maxWidth:'400px', width:'100%', boxSizing:'border-box'}}>
+              <ul className="play-rules" style={{listStyle:'none', margin:'32px 0 0', padding:'16px 24px', backgroundColor:'#f8f8f8', borderRadius:'12px', fontSize:'13px', color:'#666', display:'flex', flexDirection:'column', gap:'8px', maxWidth:'400px', width:'100%', boxSizing:'border-box'}}>
                 <li>🎵 Trouve l'artiste et le titre de chaque morceau</li>
                 <li>✏️ Tu peux modifier ta réponse jusqu'à la fin du timer</li>
                 <li>🥇 Bonus pour le premier à trouver !</li>
@@ -369,8 +386,8 @@ export default function Play() {
           {gamePhase === 'playing' && (
             <>
               <p style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'24px'}}>Morceau {currentIndex + 1} / {totalSongs}</p>
-              <div style={{width:'120px', height:'120px', backgroundColor:'#f0f0f0', borderRadius:'16px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'48px', marginBottom:'24px'}}>🎵</div>
-              <div style={{fontSize:'56px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginBottom:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
+              <div className="play-mystery" style={{width:'120px', height:'120px', backgroundColor:'#f0f0f0', borderRadius:'16px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'48px', marginBottom:'24px'}}>🎵</div>
+              <div className="play-count" style={{fontSize:'56px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginBottom:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
                 {countdown}<span style={{fontSize:'18px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>
               <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
@@ -408,10 +425,10 @@ export default function Play() {
               <p style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'24px'}}>Révélation</p>
               <div style={{textAlign:'center', marginBottom:'24px', display:'flex', flexDirection:'column', alignItems:'center'}}>
                 {currentSong?.cover_url
-                  ? <img src={currentSong.cover_url} width={100} height={100} style={{borderRadius:'12px', marginBottom:'16px', animation:'fadeInUp 0.5s ease forwards'}} referrerPolicy="no-referrer" alt="" />
-                  : <div style={{width:'100px', height:'100px', backgroundColor:'#f0f0f0', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'36px', margin:'0 auto 16px'}}>🎤</div>
+                  ? <img src={currentSong.cover_url} width={100} height={100} className="play-cover" style={{borderRadius:'12px', marginBottom:'16px', animation:'fadeInUp 0.5s ease forwards'}} referrerPolicy="no-referrer" alt="" />
+                  : <div className="play-cover" style={{width:'100px', height:'100px', backgroundColor:'#f0f0f0', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'36px', margin:'0 auto 16px'}}>🎤</div>
                 }
-                <p style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
+                <p className="play-reveal-title" style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
                 <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
               </div>
 
@@ -433,7 +450,7 @@ export default function Play() {
                 )
 
                 return (
-                  <div style={{width:'100%', maxWidth:'320px', margin:'0 auto 24px'}}>
+                  <div className="play-table" style={{width:'100%', maxWidth:'320px', margin:'0 auto 24px'}}>
                     {!result && <p style={{fontSize:'13px', color:'#999', textAlign:'center', marginBottom:'12px', fontStyle:'italic'}}>Tu n'as pas répondu</p>}
                     <Row label={`Artiste correct (${correctArtistCount}/${n})`} value={artistOk ? '+5 pts' : '0'} ok={artistOk} />
                     <Row label={`Titre correct (${correctTitleCount}/${n})`} value={titleOk ? '+5 pts' : '0'} ok={titleOk} />
@@ -455,7 +472,7 @@ export default function Play() {
 
         </div>
 
-        <div style={{width:'220px', borderLeft:'1px solid #f0f0f0', padding:'24px 16px', overflowY:'auto'}}>
+        <div className="play-sidebar" style={{width:'220px', borderLeft:'1px solid #f0f0f0', padding:'24px 16px', overflowY:'auto'}}>
           <p style={{fontSize:'12px', fontWeight:'500', color:'#999', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'16px'}}>Classement</p>
           {players.map((p, i) => (
             <div key={p.id} style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px'}}>
@@ -494,6 +511,35 @@ export default function Play() {
           )}
         </div>
       </div>
+
+      {/* Bouton flottant classement (mobile uniquement) */}
+      <button
+        className="play-fab"
+        onClick={() => setShowLeaderboard(true)}
+        style={{display:'none', position:'fixed', bottom:'20px', right:'20px', zIndex:50, alignItems:'center', gap:'6px', padding:'12px 18px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'99px', fontSize:'14px', fontWeight:'500', cursor:'pointer', boxShadow:'0 4px 16px rgba(0,0,0,0.2)'}}
+      >
+        🏆 Classement
+      </button>
+
+      {/* Drawer classement (mobile) */}
+      {showLeaderboard && (
+        <div onClick={() => setShowLeaderboard(false)} style={{position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.4)', zIndex:60}}>
+          <div onClick={e => e.stopPropagation()} style={{position:'fixed', bottom:0, left:0, right:0, height:'60%', backgroundColor:'#fff', borderRadius:'16px 16px 0 0', padding:'24px', boxSizing:'border-box', overflowY:'auto', zIndex:61, animation:'slideUp 0.25s ease forwards'}}>
+            <div onClick={() => setShowLeaderboard(false)} style={{width:'40px', height:'4px', backgroundColor:'#e0e0e0', borderRadius:'2px', margin:'0 auto 20px', cursor:'pointer'}} />
+            <p style={{fontSize:'12px', fontWeight:'500', color:'#999', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'16px'}}>Classement</p>
+            {players.map((p, i) => (
+              <div key={p.id} style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px'}}>
+                <span style={{fontSize:'13px', color:'#999', width:'18px'}}>{i+1}</span>
+                <span style={{fontSize:'22px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
+                <div style={{flex:1, minWidth:0}}>
+                  <p style={{fontSize:'14px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{getLevel(p.profiles?.total_score || 0).emoji} {p.profiles?.pseudo}</p>
+                  <p style={{fontSize:'12px', color:'#999'}}>{p.score} pts</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   )
 }

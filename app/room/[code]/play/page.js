@@ -17,7 +17,9 @@ export default function Play() {
   const [countdown, setCountdown] = useState(INTRO_DURATION)
   const [artistAnswer, setArtistAnswer] = useState('')
   const [titleAnswer, setTitleAnswer] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [artistFeedback, setArtistFeedback] = useState(null)
+  const [titleFeedback, setTitleFeedback] = useState(null)
+  const [frozen, setFrozen] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -27,7 +29,11 @@ export default function Play() {
   const gamePhaseRef = useRef('intro')
   const phaseStartedAtRef = useRef(null)
   const userRef = useRef(null)
-  const submittedRef = useRef(false)
+  const artistAnswerRef = useRef('')
+  const titleAnswerRef = useRef('')
+  const hasSubmittedRef = useRef(false)
+  const artistDebounceRef = useRef(null)
+  const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
   const pollFnRef = useRef(null)
   const pollTimeoutRef = useRef(null)
@@ -90,11 +96,15 @@ export default function Play() {
         if (freshRoom.current_song_index !== currentIndexRef.current) {
           currentIndexRef.current = freshRoom.current_song_index
           setCurrentIndex(freshRoom.current_song_index)
-          submittedRef.current = false
-          setSubmitted(false)
+          hasSubmittedRef.current = false
+          artistAnswerRef.current = ''
+          titleAnswerRef.current = ''
           setResult(null)
           setArtistAnswer('')
           setTitleAnswer('')
+          setArtistFeedback(null)
+          setTitleFeedback(null)
+          setFrozen(false)
         }
 
         const supabase = createClient()
@@ -132,22 +142,47 @@ export default function Play() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
+  function handleArtistChange(e) {
+    const val = e.target.value
+    setArtistAnswer(val)
+    artistAnswerRef.current = val
+    clearTimeout(artistDebounceRef.current)
+    artistDebounceRef.current = setTimeout(() => {
+      const song = songsRef.current[currentIndexRef.current]
+      if (!song || !val) { setArtistFeedback(null); return }
+      if (checkAnswer(val, song.artist)) setArtistFeedback('correct')
+      else if (closeAnswer(val, song.artist)) setArtistFeedback('close')
+      else setArtistFeedback(null)
+    }, 300)
+  }
+
+  function handleTitleChange(e) {
+    const val = e.target.value
+    setTitleAnswer(val)
+    titleAnswerRef.current = val
+    clearTimeout(titleDebounceRef.current)
+    titleDebounceRef.current = setTimeout(() => {
+      const song = songsRef.current[currentIndexRef.current]
+      if (!song || !val) { setTitleFeedback(null); return }
+      if (checkAnswer(val, song.title)) setTitleFeedback('correct')
+      else if (closeAnswer(val, song.title)) setTitleFeedback('close')
+      else setTitleFeedback(null)
+    }, 300)
+  }
+
   async function handleSubmit() {
-    if (submittedRef.current) return
+    if (hasSubmittedRef.current) return
     const song = songsRef.current[currentIndexRef.current]
     if (!song) return
-    const artistOk = checkAnswer(artistAnswer, song.artist)
-    const titleOk = checkAnswer(titleAnswer, song.title)
-    const artistStatus = artistOk ? 'correct' : closeAnswer(artistAnswer, song.artist) ? 'close' : 'wrong'
-    const titleStatus = titleOk ? 'correct' : closeAnswer(titleAnswer, song.title) ? 'close' : 'wrong'
-    submittedRef.current = true
-    setSubmitted(true)
+    const artistVal = artistAnswerRef.current
+    const titleVal = titleAnswerRef.current
+    const artistOk = checkAnswer(artistVal, song.artist)
+    const titleOk = checkAnswer(titleVal, song.title)
+    hasSubmittedRef.current = true
 
     const supabase = createClient()
-
     const artistPoints = artistOk ? 5 : 0
     const titlePoints = titleOk ? 5 : 0
-
     let bonusArtist = 0
     let bonusTitle = 0
     let bonusBoth = 0
@@ -179,16 +214,17 @@ export default function Play() {
     }
 
     const points = artistPoints + titlePoints + bonusArtist + bonusTitle + bonusBoth
+    const songIndex = currentIndexRef.current
 
-    setResult({ artistOk, titleOk, artistStatus, titleStatus, points, song, bonusArtist, bonusTitle, bonusBoth })
-    setPastResults(prev => [...prev, { songIndex: currentIndexRef.current, points }])
+    setResult({ artistOk, titleOk, points, song, bonusArtist, bonusTitle, bonusBoth })
+    setPastResults(prev => [...prev, { songIndex, points }])
 
     await supabase.from('answers').insert({
       room_id: roomRef.current.id,
       player_id: userRef.current.id,
       song_id: song.id,
-      artist_answer: artistAnswer || '',
-      title_answer: titleAnswer || '',
+      artist_answer: artistVal || '',
+      title_answer: titleVal || '',
       artist_correct: artistOk,
       title_correct: titleOk,
       points,
@@ -201,6 +237,15 @@ export default function Play() {
       await supabase.from('room_players').update({ score: newScore }).eq('room_id', roomRef.current.id).eq('player_id', userRef.current.id)
     }
   }
+
+  function handleFiger() {
+    setFrozen(true)
+    handleSubmit()
+  }
+
+  useEffect(() => {
+    if (gamePhase === 'reveal') handleSubmit()
+  }, [gamePhase])
 
   if (!room || songsRef.current.length === 0) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui'}}>
@@ -265,49 +310,40 @@ export default function Play() {
               <div style={{fontSize:'56px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginBottom:'32px'}}>
                 {countdown}<span style={{fontSize:'18px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>
-              {!submitted ? (
-                <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
+              <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
+                <div>
                   <input
                     value={artistAnswer}
-                    onChange={e => setArtistAnswer(e.target.value)}
+                    onChange={handleArtistChange}
                     placeholder="Artiste..."
-                    style={{width:'100%', padding:'14px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}}
-                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                    disabled={frozen}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#dcfce7' : artistFeedback === 'close' ? '#fed7aa' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
+                    onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
                     autoFocus
                   />
+                  {artistFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Artiste trouvé !</p>}
+                  {artistFeedback === 'close' && <p style={{fontSize:'12px', color:'#ea580c', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>Pas loin !</p>}
+                </div>
+                <div>
                   <input
                     value={titleAnswer}
-                    onChange={e => setTitleAnswer(e.target.value)}
+                    onChange={handleTitleChange}
                     placeholder="Titre..."
-                    style={{width:'100%', padding:'14px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}}
-                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                    disabled={frozen}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#dcfce7' : titleFeedback === 'close' ? '#fed7aa' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
+                    onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
                   />
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!artistAnswer && !titleAnswer}
-                    style={{width:'100%', padding:'14px', backgroundColor: (artistAnswer || titleAnswer) ? '#111' : '#ccc', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor: (artistAnswer || titleAnswer) ? 'pointer' : 'default'}}
-                  >
-                    Valider →
-                  </button>
+                  {titleFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Titre trouvé !</p>}
+                  {titleFeedback === 'close' && <p style={{fontSize:'12px', color:'#ea580c', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>Pas loin !</p>}
                 </div>
-              ) : result && (
-                <div style={{display:'flex', gap:'8px', width:'100%', maxWidth:'400px'}}>
-                  {[
-                    { status: result.artistStatus, okLabel: '🎤 Artiste trouvé !', label: 'Artiste' },
-                    { status: result.titleStatus, okLabel: '🎵 Titre trouvé !', label: 'Titre' }
-                  ].map(({ status, okLabel }) => {
-                    const bg = status === 'correct' ? '#f0fdf4' : status === 'close' ? '#fff7ed' : '#fef2f2'
-                    const border = status === 'correct' ? '#dcfce7' : status === 'close' ? '#fed7aa' : '#fee2e2'
-                    const color = status === 'correct' ? '#16a34a' : status === 'close' ? '#ea580c' : '#dc2626'
-                    const text = status === 'correct' ? okLabel : status === 'close' ? 'Pas loin !' : 'Pas du tout'
-                    return (
-                      <div key={okLabel} style={{flex:1, padding:'12px', borderRadius:'8px', textAlign:'center', backgroundColor:bg, border:`1px solid ${border}`}}>
-                        <p style={{fontSize:'13px', fontWeight:'500', color}}>{text}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                <button
+                  onClick={handleFiger}
+                  disabled={frozen || (!artistAnswer && !titleAnswer)}
+                  style={{width:'100%', padding:'14px', backgroundColor: frozen ? '#f0fdf4' : (artistAnswer || titleAnswer) ? '#111' : '#ccc', color: frozen ? '#16a34a' : '#fff', border: frozen ? '1px solid #dcfce7' : 'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor: frozen ? 'default' : (artistAnswer || titleAnswer) ? 'pointer' : 'default'}}
+                >
+                  {frozen ? '✓ Réponse figée' : 'Figer ma réponse'}
+                </button>
+              </div>
             </>
           )}
 

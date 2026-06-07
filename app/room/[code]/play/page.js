@@ -41,6 +41,7 @@ export default function Play() {
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
+  const visibilityHandlerRef = useRef(null)
 
   useEffect(() => {
     let stopped = false
@@ -96,6 +97,34 @@ export default function Play() {
         if (!stopped) { setCorrectArtistCount(ca ?? 0); setCorrectTitleCount(ct ?? 0) }
       }
 
+      // Applique un état room frais (depuis le Realtime ou une resync) : phases, morceau, fin de partie
+      function applyRoomState(freshRoom) {
+        if (!freshRoom || stopped) return
+        if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
+        if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
+
+        phaseStartedAtRef.current = freshRoom.phase_started_at
+        if (freshRoom.phase !== gamePhaseRef.current) {
+          gamePhaseRef.current = freshRoom.phase
+          setGamePhase(freshRoom.phase)
+          if (freshRoom.phase === 'reveal') refreshRevealCounts()
+        }
+        if (freshRoom.current_song_index !== currentIndexRef.current) {
+          currentIndexRef.current = freshRoom.current_song_index
+          setCurrentIndex(freshRoom.current_song_index)
+          hasSubmittedRef.current = false
+          pendingPointsRef.current = 0
+          artistAnswerRef.current = ''
+          titleAnswerRef.current = ''
+          setResult(null)
+          setArtistAnswer('')
+          setTitleAnswer('')
+          setArtistFeedback(null)
+          setTitleFeedback(null)
+          setFrozen(false)
+        }
+      }
+
       // Si on arrive directement en plein reveal, on charge les compteurs tout de suite
       if (gamePhaseRef.current === 'reveal') refreshRevealCounts()
 
@@ -108,32 +137,7 @@ export default function Play() {
           schema: 'public',
           table: 'rooms',
           filter: `id=eq.${roomData.id}`
-        }, (payload) => {
-          const freshRoom = payload.new
-          if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
-          if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
-
-          phaseStartedAtRef.current = freshRoom.phase_started_at
-          if (freshRoom.phase !== gamePhaseRef.current) {
-            gamePhaseRef.current = freshRoom.phase
-            setGamePhase(freshRoom.phase)
-            if (freshRoom.phase === 'reveal') refreshRevealCounts()
-          }
-          if (freshRoom.current_song_index !== currentIndexRef.current) {
-            currentIndexRef.current = freshRoom.current_song_index
-            setCurrentIndex(freshRoom.current_song_index)
-            hasSubmittedRef.current = false
-            pendingPointsRef.current = 0
-            artistAnswerRef.current = ''
-            titleAnswerRef.current = ''
-            setResult(null)
-            setArtistAnswer('')
-            setTitleAnswer('')
-            setArtistFeedback(null)
-            setTitleFeedback(null)
-            setFrozen(false)
-          }
-        })
+        }, (payload) => applyRoomState(payload.new))
         .subscribe()
       realtimeRef.current = supabaseRealtime
       channelRef.current = channel
@@ -143,6 +147,21 @@ export default function Play() {
         refreshPlayers()
         if (gamePhaseRef.current === 'reveal') refreshRevealCounts()
       }, 3000)
+
+      // Resync one-shot au retour de visibilité : le websocket a pu manquer un event en arrière-plan
+      async function handleVisibility() {
+        if (document.visibilityState !== 'visible' || stopped || !roomRef.current) return
+        const gp = gamePhaseRef.current
+        const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
+        setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
+        try {
+          const res = await fetch(`/api/room-state?code=${roomRef.current.code}`, { cache: 'no-store' })
+          applyRoomState(await res.json())
+          refreshPlayers()
+        } catch {}
+      }
+      visibilityHandlerRef.current = handleVisibility
+      document.addEventListener('visibilitychange', handleVisibility)
     }
 
     init()
@@ -150,6 +169,7 @@ export default function Play() {
       stopped = true
       clearInterval(playersIntervalRef.current)
       if (realtimeRef.current && channelRef.current) realtimeRef.current.removeChannel(channelRef.current)
+      if (visibilityHandlerRef.current) document.removeEventListener('visibilitychange', visibilityHandlerRef.current)
     }
   }, [code])
 

@@ -83,6 +83,10 @@ export default function Admin() {
           <span style={{fontSize:'13px', color:'#999'}}>app</span>
         </a>
         <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+          <a href="/admin/stats"
+            style={{padding:'6px 12px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'11px', cursor:'pointer', color:'#999', textDecoration:'none'}}>
+            Stats
+          </a>
           <button
             onClick={async () => {
               const pwd = prompt('Nouveau mot de passe :')

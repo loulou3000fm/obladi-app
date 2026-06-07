@@ -99,15 +99,29 @@ export default function Dashboard() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#ffffff', fontFamily:'system-ui, sans-serif'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .dash-nav { padding: 16px 24px !important; }
+          .dash-nav-actions { gap: 8px !important; }
+          .dash-pseudo { display: none !important; }
+          .dash-container { padding: 24px 16px !important; }
+          .dash-profile { flex-direction: column !important; text-align: center !important; padding: 24px !important; gap: 16px !important; }
+          .dash-level-bar { max-width: 100% !important; }
+          .dash-stats { margin-left: 0 !important; gap: 16px !important; width: 100%; justify-content: center; }
+          .dash-room-card { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; padding: 16px !important; }
+          .dash-room-btn { width: 100% !important; }
+          .dash-session { padding: 12px 14px !important; gap: 12px !important; }
+        }
+      `}</style>
+      <nav className="dash-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
           <span style={{fontSize:'13px', color:'#999'}}>app</span>
         </a>
-        <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+        <div className="dash-nav-actions" style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'24px'}}>{AVATARS[profile?.avatar_id] || '🎵'}</span>
-          <span style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>{profile?.pseudo}</span>
+          <span className="dash-pseudo" style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>{profile?.pseudo}</span>
           <button onClick={handleLogout}
             style={{padding:'6px 14px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'12px', cursor:'pointer', color:'#666'}}>
             Déconnexion
@@ -115,10 +129,10 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div style={{maxWidth:'800px', margin:'0 auto', padding:'48px'}}>
+      <div className="dash-container" style={{maxWidth:'800px', margin:'0 auto', padding:'48px'}}>
 
         {/* Header profil */}
-        <div style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'40px', padding:'32px', backgroundColor:'#f8f8f8', borderRadius:'16px'}}>
+        <div className="dash-profile" style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'40px', padding:'32px', backgroundColor:'#f8f8f8', borderRadius:'16px'}}>
           <div style={{fontSize:'56px'}}>{AVATARS[profile?.avatar_id] || '🎵'}</div>
           {(() => {
             const total = profile?.total_score || 0
@@ -131,7 +145,7 @@ export default function Dashboard() {
               <div style={{flex:1, minWidth:0}}>
                 <h1 style={{fontSize:'28px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'4px'}}>{profile?.pseudo}</h1>
                 <p style={{fontSize:'14px', color:'#666', marginBottom:'12px'}}>{lvl.emoji} {lvl.name}</p>
-                <div style={{maxWidth:'240px'}}>
+                <div className="dash-level-bar" style={{maxWidth:'240px'}}>
                   <div style={{height:'4px', borderRadius:'2px', backgroundColor:'#e8e8e8', overflow:'hidden'}}>
                     <div style={{height:'4px', borderRadius:'2px', width:`${progress}%`, backgroundColor:'#3b82f6'}} />
                   </div>
@@ -142,7 +156,7 @@ export default function Dashboard() {
               </div>
             )
           })()}
-          <div style={{marginLeft:'auto', display:'flex', gap:'24px', textAlign:'center'}}>
+          <div className="dash-stats" style={{marginLeft:'auto', display:'flex', gap:'24px', textAlign:'center'}}>
             <div>
               <p style={{fontSize:'24px', fontWeight:'500', color:'#111'}}>{profile?.games_played || 0}</p>
               <p style={{fontSize:'12px', color:'#999'}}>Parties</p>
@@ -179,7 +193,7 @@ export default function Dashboard() {
           ) : (
             <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
               {activeRooms.map(room => (
-                <div key={room.id} style={{display:'flex', alignItems:'center', gap:'16px', padding:'20px 24px', border:'1px solid #e0e0e0', borderRadius:'12px', backgroundColor: room.status === 'playing' ? '#f0f9ff' : '#fff'}}>
+                <div key={room.id} className="dash-room-card" style={{display:'flex', alignItems:'center', gap:'16px', padding:'20px 24px', border:'1px solid #e0e0e0', borderRadius:'12px', backgroundColor: room.status === 'playing' ? '#f0f9ff' : '#fff'}}>
                   <div style={{flex:1}}>
                     <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px'}}>
                       <p style={{fontSize:'15px', fontWeight:'500', color:'#111'}}>{room.title || room.playlists?.name}</p>
@@ -191,6 +205,7 @@ export default function Dashboard() {
                   </div>
                   <button
                     onClick={() => joinRoom(room)}
+                    className="dash-room-btn"
                     style={{padding:'10px 20px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'500', cursor:'pointer'}}
                   >
                     {room.status === 'playing' ? 'Rejoindre →' : 'Entrer →'}
@@ -211,7 +226,7 @@ export default function Dashboard() {
               </div>
             ) : (
               sessions.map(s => (
-                <div key={s.id} style={{display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', border:'1px solid #f0f0f0', borderRadius:'12px'}}>
+                <div key={s.id} className="dash-session" style={{display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', border:'1px solid #f0f0f0', borderRadius:'12px'}}>
                   <div style={{width:'40px', height:'40px', backgroundColor:'#f0f0f0', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', flexShrink:0}}>
                     🎵
                   </div>

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer } from '../../../../lib/game'
+import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, closeAnswer } from '../../../../lib/game'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -138,6 +138,8 @@ export default function Play() {
     if (!song) return
     const artistOk = checkAnswer(artistAnswer, song.artist)
     const titleOk = checkAnswer(titleAnswer, song.title)
+    const artistStatus = artistOk ? 'correct' : closeAnswer(artistAnswer, song.artist) ? 'close' : 'wrong'
+    const titleStatus = titleOk ? 'correct' : closeAnswer(titleAnswer, song.title) ? 'close' : 'wrong'
     submittedRef.current = true
     setSubmitted(true)
 
@@ -178,7 +180,7 @@ export default function Play() {
 
     const points = artistPoints + titlePoints + bonusArtist + bonusTitle + bonusBoth
 
-    setResult({ artistOk, titleOk, points, song })
+    setResult({ artistOk, titleOk, artistStatus, titleStatus, points, song, bonusArtist, bonusTitle, bonusBoth })
     setPastResults(prev => [...prev, { songIndex: currentIndexRef.current, points }])
 
     await supabase.from('answers').insert({
@@ -288,9 +290,22 @@ export default function Play() {
                     Valider →
                   </button>
                 </div>
-              ) : (
-                <div style={{padding:'16px 32px', backgroundColor:'#f0fdf4', border:'1px solid #dcfce7', borderRadius:'8px'}}>
-                  <p style={{fontSize:'14px', color:'#16a34a', fontWeight:'500'}}>✓ Réponse envoyée !</p>
+              ) : result && (
+                <div style={{display:'flex', gap:'8px', width:'100%', maxWidth:'400px'}}>
+                  {[
+                    { status: result.artistStatus, okLabel: '🎤 Artiste trouvé !', label: 'Artiste' },
+                    { status: result.titleStatus, okLabel: '🎵 Titre trouvé !', label: 'Titre' }
+                  ].map(({ status, okLabel }) => {
+                    const bg = status === 'correct' ? '#f0fdf4' : status === 'close' ? '#fff7ed' : '#fef2f2'
+                    const border = status === 'correct' ? '#dcfce7' : status === 'close' ? '#fed7aa' : '#fee2e2'
+                    const color = status === 'correct' ? '#16a34a' : status === 'close' ? '#ea580c' : '#dc2626'
+                    const text = status === 'correct' ? okLabel : status === 'close' ? 'Pas loin !' : 'Pas du tout'
+                    return (
+                      <div key={okLabel} style={{flex:1, padding:'12px', borderRadius:'8px', textAlign:'center', backgroundColor:bg, border:`1px solid ${border}`}}>
+                        <p style={{fontSize:'13px', fontWeight:'500', color}}>{text}</p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
@@ -308,19 +323,16 @@ export default function Play() {
                 <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
               </div>
               {result ? (
-                <div style={{width:'100%', maxWidth:'420px', marginBottom:'24px'}}>
-                  <div style={{fontSize:'32px', fontWeight:'500', color:'#111', textAlign:'center', marginBottom:'16px'}}>
-                    {result.points > 0 ? `+${result.points} pts` : '0 pt'}
-                  </div>
-                  <div style={{display:'flex', gap:'8px'}}>
-                    <div style={{flex:1, padding:'12px', backgroundColor: result.artistOk ? '#f0fdf4' : '#fef2f2', borderRadius:'8px', border:`1px solid ${result.artistOk ? '#dcfce7' : '#fee2e2'}`}}>
-                      <p style={{fontSize:'12px', color: result.artistOk ? '#16a34a' : '#dc2626', marginBottom:'4px', fontWeight:'500'}}>{result.artistOk ? '✓ Artiste' : '✗ Artiste'}</p>
-                      <p style={{fontSize:'13px', color:'#666'}}>{artistAnswer || '—'}</p>
+                <div style={{textAlign:'center', marginBottom:'24px'}}>
+                  {(result.bonusArtist > 0 || result.bonusTitle > 0 || result.bonusBoth > 0) && (
+                    <div style={{display:'flex', flexDirection:'column', gap:'4px', marginBottom:'12px'}}>
+                      {result.bonusArtist > 0 && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>+1 🥇 1er artiste</p>}
+                      {result.bonusTitle > 0 && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>+1 🥇 1er titre</p>}
+                      {result.bonusBoth > 0 && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>+1 🥇 1er les deux</p>}
                     </div>
-                    <div style={{flex:1, padding:'12px', backgroundColor: result.titleOk ? '#f0fdf4' : '#fef2f2', borderRadius:'8px', border:`1px solid ${result.titleOk ? '#dcfce7' : '#fee2e2'}`}}>
-                      <p style={{fontSize:'12px', color: result.titleOk ? '#16a34a' : '#dc2626', marginBottom:'4px', fontWeight:'500'}}>{result.titleOk ? '✓ Titre' : '✗ Titre'}</p>
-                      <p style={{fontSize:'13px', color:'#666'}}>{titleAnswer || '—'}</p>
-                    </div>
+                  )}
+                  <div style={{fontSize:'32px', fontWeight:'500', color:'#111'}}>
+                    {result.points > 0 ? `+${result.points} pts` : 'Pas de points cette fois'}
                   </div>
                 </div>
               ) : (

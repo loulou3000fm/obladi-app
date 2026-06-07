@@ -49,6 +49,18 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [])
 
+  // Mise à jour instantanée : dès qu'un admin crée/modifie une room, on recharge la liste
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('dashboard-rooms')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+        refreshRooms()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()

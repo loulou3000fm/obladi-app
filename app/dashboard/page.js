@@ -49,11 +49,10 @@ export default function Dashboard() {
     const supabase = createClient()
     const channel = supabase
       .channel('dashboard-rooms')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, (payload) => {
-        console.log('Realtime event received:', payload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
         refreshRooms()
       })
-      .subscribe((status) => console.log('Realtime status:', status))
+      .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
 

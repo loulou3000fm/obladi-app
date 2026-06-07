@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '../../lib/supabase'
+import { getLevel } from '../../lib/game'
 import { useRouter } from 'next/navigation'
 
 const AVATARS = {
@@ -119,10 +120,28 @@ export default function Dashboard() {
         {/* Header profil */}
         <div style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'40px', padding:'32px', backgroundColor:'#f8f8f8', borderRadius:'16px'}}>
           <div style={{fontSize:'56px'}}>{AVATARS[profile?.avatar_id] || '🎵'}</div>
-          <div>
-            <h1 style={{fontSize:'28px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'4px'}}>{profile?.pseudo}</h1>
-            <p style={{fontSize:'14px', color:'#999'}}>Membre Obladi</p>
-          </div>
+          {(() => {
+            const total = profile?.total_score || 0
+            const lvl = getLevel(total)
+            const isMax = lvl.nextThreshold === null
+            const span = isMax ? 0 : lvl.nextThreshold - lvl.currentThreshold
+            const progress = isMax ? 100 : Math.min(100, Math.round(((total - lvl.currentThreshold) / span) * 100))
+            const remaining = isMax ? 0 : lvl.nextThreshold - total
+            return (
+              <div style={{flex:1, minWidth:0}}>
+                <h1 style={{fontSize:'28px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'4px'}}>{profile?.pseudo}</h1>
+                <p style={{fontSize:'14px', color:'#666', marginBottom:'12px'}}>{lvl.emoji} {lvl.name}</p>
+                <div style={{maxWidth:'240px'}}>
+                  <div style={{height:'4px', borderRadius:'2px', backgroundColor:'#e8e8e8', overflow:'hidden'}}>
+                    <div style={{height:'4px', borderRadius:'2px', width:`${progress}%`, backgroundColor:'#3b82f6'}} />
+                  </div>
+                  <p style={{fontSize:'12px', color:'#999', marginTop:'6px'}}>
+                    {isMax ? '🏆 Niveau maximum atteint !' : `${remaining} pts pour le niveau suivant`}
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
           <div style={{marginLeft:'auto', display:'flex', gap:'24px', textAlign:'center'}}>
             <div>
               <p style={{fontSize:'24px', fontWeight:'500', color:'#111'}}>{profile?.games_played || 0}</p>

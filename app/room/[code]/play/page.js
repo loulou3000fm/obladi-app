@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, closeAnswer } from '../../../../lib/game'
+import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, closeAnswer, getLevel } from '../../../../lib/game'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -70,7 +70,7 @@ export default function Play() {
       const { data: myPlayer } = await supabase.from('room_players').select('score').eq('room_id', roomData.id).eq('player_id', user.id).maybeSingle()
       if (myPlayer) { setMyScore(myPlayer.score || 0); myScoreRef.current = myPlayer.score || 0 }
 
-      const { data: playersData } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomData.id).order('score', { ascending: false })
+      const { data: playersData } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id, total_score)').eq('room_id', roomData.id).order('score', { ascending: false })
       setPlayers(playersData || [])
 
       async function doPoll() {
@@ -110,7 +110,7 @@ export default function Play() {
         }
 
         const supabase = createClient()
-        const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
+        const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id, total_score)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
         setPlayers(freshPlayers || [])
 
         const currentSong = songsRef.current[currentIndexRef.current]
@@ -424,7 +424,7 @@ export default function Play() {
               <span style={{fontSize:'12px', color:'#999', width:'16px'}}>{i+1}</span>
               <span style={{fontSize:'16px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
               <div style={{flex:1, minWidth:0}}>
-                <p style={{fontSize:'12px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.profiles?.pseudo}</p>
+                <p style={{fontSize:'12px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{getLevel(p.profiles?.total_score || 0).emoji} {p.profiles?.pseudo}</p>
                 <p style={{fontSize:'11px', color:'#999'}}>{p.score} pts</p>
               </div>
             </div>

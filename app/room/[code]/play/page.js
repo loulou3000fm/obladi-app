@@ -319,6 +319,12 @@ export default function Play() {
               <div style={{fontSize:'64px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginTop:'32px'}}>
                 {countdown}<span style={{fontSize:'20px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>
+              <ul style={{listStyle:'none', margin:'32px 0 0', padding:'16px 24px', backgroundColor:'#f8f8f8', borderRadius:'12px', fontSize:'13px', color:'#666', display:'flex', flexDirection:'column', gap:'8px', maxWidth:'400px', width:'100%', boxSizing:'border-box'}}>
+                <li>🎵 Trouve l'artiste et le titre de chaque morceau</li>
+                <li>✏️ Tu peux modifier ta réponse jusqu'à la fin du timer</li>
+                <li>🥇 Bonus pour le premier à trouver !</li>
+                <li>🎯 5 pts par bonne réponse + bonus premiers</li>
+              </ul>
             </>
           )}
 
@@ -336,7 +342,7 @@ export default function Play() {
                     onChange={handleArtistChange}
                     placeholder="Artiste..."
                     disabled={frozen}
-                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#dcfce7' : artistFeedback === 'close' ? '#fed7aa' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#16a34a' : artistFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
                     onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
                     autoFocus
                   />
@@ -349,7 +355,7 @@ export default function Play() {
                     onChange={handleTitleChange}
                     placeholder="Titre..."
                     disabled={frozen}
-                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#dcfce7' : titleFeedback === 'close' ? '#fed7aa' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#16a34a' : titleFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f8f8f8' : '#fff'}}
                     onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
                   />
                   {titleFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Titre trouvé !</p>}

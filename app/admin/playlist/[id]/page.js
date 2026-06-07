@@ -102,6 +102,8 @@ export default function PlaylistAdmin() {
     const supabase = createClient()
     await supabase.from('songs').delete().eq('id', songId)
     setSongs(prev => prev.filter(s => s.id !== songId))
+    const { count } = await supabase.from('songs').select('*', { count: 'exact', head: true }).eq('playlist_id', id)
+    await supabase.from('playlists').update({ songs_count: count ?? 0 }).eq('id', id)
   }
 
   async function updateYoutubeId(songId) {

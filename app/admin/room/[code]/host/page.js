@@ -45,7 +45,7 @@ export default function HostRoom() {
         phaseStartedAtRef.current = roomData.phase_started_at
       }
 
-      const { data: songsData } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('created_at')
+      const { data: songsData } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
       setSongs(songsData || [])
       songsRef.current = songsData || []
 

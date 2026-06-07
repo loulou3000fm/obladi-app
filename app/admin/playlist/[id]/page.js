@@ -18,6 +18,8 @@ export default function PlaylistAdmin() {
   const [playingId, setPlayingId] = useState(null)
   const [editingYoutube, setEditingYoutube] = useState(null)
   const [youtubeInput, setYoutubeInput] = useState('')
+  const [dragIndex, setDragIndex] = useState(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
   const playerRef = useRef(null)
 
   useEffect(() => { loadData() }, [id])
@@ -25,7 +27,7 @@ export default function PlaylistAdmin() {
   async function loadData() {
     const supabase = createClient()
     const { data: pl } = await supabase.from('playlists').select('*').eq('id', id).single()
-    const { data: sg } = await supabase.from('songs').select('*').eq('playlist_id', id).order('created_at', { ascending: false })
+    const { data: sg } = await supabase.from('songs').select('*').eq('playlist_id', id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
     setPlaylist(pl)
     setSongs(sg || [])
   }
@@ -58,10 +60,11 @@ export default function PlaylistAdmin() {
       cover_url: track.album.images[0]?.url,
       preview_url: track.preview_url || null,
       duration_ms: track.duration_ms,
-      youtube_id: track.youtube_id || null
+      youtube_id: track.youtube_id || null,
+      position: songs.length
     }
     const { data } = await supabase.from('songs').insert(song).select().single()
-    setSongs(prev => [data, ...prev])
+    setSongs(prev => [...prev, data])
     await supabase.from('playlists').update({ songs_count: songs.length + 1 }).eq('id', id)
     setPlaylist(prev => ({ ...prev, songs_count: (prev.songs_count || 0) + 1 }))
   }
@@ -82,7 +85,7 @@ export default function PlaylistAdmin() {
     }
 
     const supabase = createClient()
-    const songsToInsert = tracks.map(t => ({ ...t, playlist_id: id }))
+    const songsToInsert = tracks.map((t, idx) => ({ ...t, playlist_id: id, position: songs.length + idx }))
     const { error } = await supabase.from('songs').insert(songsToInsert)
 
     if (error) {
@@ -129,6 +132,44 @@ export default function PlaylistAdmin() {
     } else {
       setPlayingId(song.id)
     }
+  }
+
+  function handleDragStart(e, i) {
+    setDragIndex(i)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function handleDragOver(e, i) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (i !== dragOverIndex) setDragOverIndex(i)
+  }
+
+  function handleDragEnd() {
+    setDragIndex(null)
+    setDragOverIndex(null)
+  }
+
+  async function handleDrop(e, dropIndex) {
+    e.preventDefault()
+    if (dragIndex === null || dragIndex === dropIndex) { handleDragEnd(); return }
+
+    const reordered = [...songs]
+    const [moved] = reordered.splice(dragIndex, 1)
+    reordered.splice(dropIndex, 0, moved)
+    const withPositions = reordered.map((s, idx) => ({ ...s, position: idx }))
+    setSongs(withPositions)
+    setDragIndex(null)
+    setDragOverIndex(null)
+
+    const payload = withPositions.map((s, idx) => ({ id: s.id, position: idx }))
+    const res = await fetch('/api/reorder-songs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    const data = await res.json()
+    if (data.error) { console.error('reorder error:', data.error); loadData() }
   }
 
   if (!playlist) return <div style={{padding:'48px', fontFamily:'system-ui', color:'#999', fontSize:'14px'}}>Chargement...</div>
@@ -221,7 +262,16 @@ export default function PlaylistAdmin() {
           ) : (
             <div style={{border:'1px solid #f0f0f0', borderRadius:'12px', overflow:'hidden'}}>
               {songs.map((song, i) => (
-                <div key={song.id} style={{display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', borderBottom: i < songs.length-1 ? '1px solid #f8f8f8' : 'none'}}>
+                <div
+                  key={song.id}
+                  draggable={editingYoutube !== song.id}
+                  onDragStart={e => handleDragStart(e, i)}
+                  onDragOver={e => handleDragOver(e, i)}
+                  onDrop={e => handleDrop(e, i)}
+                  onDragEnd={handleDragEnd}
+                  style={{display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', borderBottom: i < songs.length-1 ? '1px solid #f8f8f8' : 'none', backgroundColor: dragOverIndex === i && dragIndex !== i ? '#f0f9ff' : '#fff', opacity: dragIndex === i ? 0.4 : 1}}
+                >
+                  <div style={{cursor:'grab', color:'#ccc', fontSize:'18px', flexShrink:0, userSelect:'none', lineHeight:1}} title="Glisser pour réordonner">⠿</div>
                   <div style={{width:'40px', height:'40px', borderRadius:'4px', backgroundColor:'#f0f0f0', flexShrink:0, overflow:'hidden'}}>
                     <img
                       src={song.cover_url}

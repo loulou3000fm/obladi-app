@@ -23,7 +23,8 @@ export default function Play() {
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
-  const [correctCount, setCorrectCount] = useState(0)
+  const [correctArtistCount, setCorrectArtistCount] = useState(0)
+  const [correctTitleCount, setCorrectTitleCount] = useState(0)
   const roomRef = useRef(null)
   const songsRef = useRef([])
   const currentIndexRef = useRef(0)
@@ -114,13 +115,18 @@ export default function Play() {
 
         const currentSong = songsRef.current[currentIndexRef.current]
         if (freshRoom.phase === 'reveal' && currentSong) {
-          const { count } = await supabase.from('answers')
+          const { count: ca } = await supabase.from('answers')
             .select('*', { count: 'exact', head: true })
             .eq('room_id', roomRef.current.id)
             .eq('song_id', currentSong.id)
             .eq('artist_correct', true)
+          setCorrectArtistCount(ca ?? 0)
+          const { count: ct } = await supabase.from('answers')
+            .select('*', { count: 'exact', head: true })
+            .eq('room_id', roomRef.current.id)
+            .eq('song_id', currentSong.id)
             .eq('title_correct', true)
-          setCorrectCount(count ?? 0)
+          setCorrectTitleCount(ct ?? 0)
         }
 
         if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500)
@@ -362,31 +368,41 @@ export default function Play() {
                   : <div style={{width:'100px', height:'100px', backgroundColor:'#f0f0f0', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'36px', margin:'0 auto 16px'}}>🎤</div>
                 }
                 <p style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
-                <p style={{fontSize:'15px', color:'#666', marginBottom:'12px'}}>{currentSong?.artist}</p>
-                <p style={{fontSize:'13px', color:'#666'}}>
-                  {correctCount === 0
-                    ? 'Personne n\'a trouvé 😅'
-                    : correctCount === players.length
-                    ? 'Tout le monde a trouvé ! 🎉'
-                    : `🎯 ${correctCount} / ${players.length} joueurs ont trouvé`}
-                </p>
+                <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
               </div>
-              {result ? (
-                <div style={{textAlign:'center', marginBottom:'24px'}}>
-                  {(result.bonusArtist > 0 || result.bonusTitle > 0 || result.bonusBoth > 0) && (
-                    <div style={{display:'flex', flexDirection:'column', gap:'4px', marginBottom:'12px'}}>
-                      {result.bonusArtist > 0 && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>+1 🥇 1er artiste</p>}
-                      {result.bonusTitle > 0 && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>+1 🥇 1er titre</p>}
-                      {result.bonusBoth > 0 && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>+1 🥇 1er les deux</p>}
-                    </div>
-                  )}
-                  <div style={{fontSize:'32px', fontWeight:'500', color:'#111'}}>
-                    {result.points > 0 ? `+${result.points} pts` : 'Pas de points cette fois'}
+
+              {/* Tableau récapitulatif */}
+              {(() => {
+                const artistOk = result?.artistOk ?? false
+                const titleOk = result?.titleOk ?? false
+                const bonusArtist = result?.bonusArtist ?? 0
+                const bonusTitle = result?.bonusTitle ?? 0
+                const bonusBoth = result?.bonusBoth ?? 0
+                const total = result?.points ?? 0
+                const n = players.length
+
+                const Row = ({ label, value, ok }) => (
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid #f0f0f0'}}>
+                    <span style={{fontSize:'13px', color:'#666'}}>{label}</span>
+                    <span style={{fontSize:'13px', fontWeight:'500', color: ok ? '#16a34a' : '#bbb'}}>{value}</span>
                   </div>
-                </div>
-              ) : (
-                <p style={{fontSize:'14px', color:'#999', marginBottom:'24px', fontStyle:'italic'}}>Tu n'as pas répondu à temps.</p>
-              )}
+                )
+
+                return (
+                  <div style={{width:'100%', maxWidth:'320px', margin:'0 auto 24px'}}>
+                    {!result && <p style={{fontSize:'13px', color:'#999', textAlign:'center', marginBottom:'12px', fontStyle:'italic'}}>Tu n'as pas répondu</p>}
+                    <Row label={`Artiste correct (${correctArtistCount}/${n})`} value={artistOk ? '+5 pts' : '0'} ok={artistOk} />
+                    <Row label={`Titre correct (${correctTitleCount}/${n})`} value={titleOk ? '+5 pts' : '0'} ok={titleOk} />
+                    <Row label={`1er à trouver l'artiste`} value={bonusArtist > 0 ? '+1 pt' : '—'} ok={bonusArtist > 0} />
+                    <Row label={`1er à trouver le titre`} value={bonusTitle > 0 ? '+1 pt' : '—'} ok={bonusTitle > 0} />
+                    <Row label={`1er à trouver les deux`} value={bonusBoth > 0 ? '+1 pt' : '—'} ok={bonusBoth > 0} />
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:'10px', marginTop:'4px'}}>
+                      <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>Total</span>
+                      <span style={{fontSize:'18px', fontWeight:'500', color: total > 0 ? '#16a34a' : '#bbb'}}>{total > 0 ? `+${total} pts` : '0 pt'}</span>
+                    </div>
+                  </div>
+                )
+              })()}
               <div style={{fontSize:'36px', fontWeight:'500', color: countdown <= 2 ? '#ef4444' : '#999'}}>
                 {countdown}<span style={{fontSize:'14px', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>

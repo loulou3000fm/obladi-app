@@ -36,7 +36,13 @@ export default function Login() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#ffffff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
-      <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .auth-nav { padding: 16px !important; }
+          .auth-container { padding: 24px !important; }
+        }
+      `}</style>
+      <nav className="auth-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
@@ -44,7 +50,7 @@ export default function Login() {
         </a>
       </nav>
 
-      <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px'}}>
+      <div className="auth-container" style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px'}}>
         <div style={{width:'100%', maxWidth:'400px'}}>
 
           {mode === 'login' && (
@@ -53,12 +59,12 @@ export default function Login() {
               <p style={{fontSize:'14px', color:'#666', marginBottom:'32px'}}>Connecte-toi avec ton email et mot de passe.</p>
               <form onSubmit={handleLogin} style={{display:'flex', flexDirection:'column', gap:'12px'}}>
                 <input type="email" placeholder="ton@email.com" value={email} onChange={e => setEmail(e.target.value)} required
-                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box'}} />
+                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}} />
                 <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} required
-                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box'}} />
+                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}} />
                 {error && <p style={{fontSize:'13px', color:'#ef4444'}}>{error}</p>}
                 <button type="submit" disabled={loading}
-                  style={{width:'100%', padding:'12px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer'}}>
+                  style={{width:'100%', padding:'12px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor:'pointer', boxSizing:'border-box'}}>
                   {loading ? 'Connexion...' : 'Se connecter →'}
                 </button>
               </form>
@@ -94,10 +100,10 @@ export default function Login() {
                   <p style={{fontSize:'14px', color:'#666', marginBottom:'32px'}}>Entre ton email et on t'envoie un lien pour le réinitialiser.</p>
                   <form onSubmit={handleReset} style={{display:'flex', flexDirection:'column', gap:'12px'}}>
                     <input type="email" placeholder="ton@email.com" value={email} onChange={e => setEmail(e.target.value)} required
-                      style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box'}} />
+                      style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}} />
                     {error && <p style={{fontSize:'13px', color:'#ef4444'}}>{error}</p>}
                     <button type="submit" disabled={loading}
-                      style={{width:'100%', padding:'12px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer'}}>
+                      style={{width:'100%', padding:'12px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor:'pointer', boxSizing:'border-box'}}>
                       {loading ? 'Envoi...' : 'Envoyer le lien →'}
                     </button>
                   </form>

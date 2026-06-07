@@ -55,7 +55,13 @@ export default function Signup() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#ffffff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
-      <nav style={{display:'flex', alignItems:'center', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
+      <style>{`
+        @media (max-width: 768px) {
+          .auth-nav { padding: 16px !important; }
+          .auth-container { padding: 24px !important; }
+        }
+      `}</style>
+      <nav className="auth-nav" style={{display:'flex', alignItems:'center', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <a href="/" style={{display:'flex', alignItems:'baseline', gap:'2px', textDecoration:'none'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
           <span style={{fontSize:'22px', fontWeight:'500', color:'#3b82f6'}}>.</span>
@@ -63,7 +69,7 @@ export default function Signup() {
         </a>
       </nav>
 
-      <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px'}}>
+      <div className="auth-container" style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'48px'}}>
         <div style={{width:'100%', maxWidth:'400px'}}>
 
           {step === 1 && (
@@ -74,7 +80,7 @@ export default function Signup() {
 
               <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
                 <input type="text" placeholder="Ton pseudo" value={pseudo} onChange={e => setPseudo(e.target.value)} maxLength={20}
-                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box'}} />
+                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}} />
 
                 <p style={{fontSize:'13px', color:'#999', margin:'4px 0'}}>Choisis ton avatar :</p>
                 <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:'8px', marginBottom:'8px'}}>
@@ -87,7 +93,7 @@ export default function Signup() {
                 </div>
 
                 <button onClick={() => pseudo.trim().length > 2 && setStep(2)}
-                  style={{width:'100%', padding:'12px', backgroundColor: pseudo.trim().length > 2 ? '#111' : '#ccc', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor: pseudo.trim().length > 2 ? 'pointer' : 'default'}}>
+                  style={{width:'100%', padding:'12px', backgroundColor: pseudo.trim().length > 2 ? '#111' : '#ccc', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor: pseudo.trim().length > 2 ? 'pointer' : 'default', boxSizing:'border-box'}}>
                   Continuer →
                 </button>
               </div>
@@ -111,12 +117,12 @@ export default function Signup() {
 
               <form onSubmit={handleSignup} style={{display:'flex', flexDirection:'column', gap:'12px'}}>
                 <input type="email" placeholder="ton@email.com" value={email} onChange={e => setEmail(e.target.value)} required
-                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box'}} />
+                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}} />
                 <input type="password" placeholder="Mot de passe (6 caractères min)" value={password} onChange={e => setPassword(e.target.value)} required
-                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box'}} />
+                  style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box'}} />
                 {error && <p style={{fontSize:'13px', color:'#ef4444'}}>{error}</p>}
                 <button type="submit" disabled={loading}
-                  style={{width:'100%', padding:'12px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer'}}>
+                  style={{width:'100%', padding:'12px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor:'pointer', boxSizing:'border-box'}}>
                   {loading ? 'Création...' : 'Créer mon compte →'}
                 </button>
               </form>

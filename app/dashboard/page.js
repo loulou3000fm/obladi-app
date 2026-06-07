@@ -44,11 +44,6 @@ export default function Dashboard() {
     loadProfile()
   }, [])
 
-  useEffect(() => {
-    const interval = setInterval(() => { refreshRooms() }, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
   // Mise à jour instantanée : dès qu'un admin crée/modifie une room, on recharge la liste
   useEffect(() => {
     const supabase = createClient()

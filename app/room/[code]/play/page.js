@@ -23,6 +23,7 @@ export default function Play() {
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
+  const [correctCount, setCorrectCount] = useState(0)
   const roomRef = useRef(null)
   const songsRef = useRef([])
   const currentIndexRef = useRef(0)
@@ -110,6 +111,18 @@ export default function Play() {
         const supabase = createClient()
         const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
         setPlayers(freshPlayers || [])
+
+        const currentSong = songsRef.current[currentIndexRef.current]
+        if (freshRoom.phase === 'reveal' && currentSong) {
+          const { count } = await supabase.from('answers')
+            .select('*', { count: 'exact', head: true })
+            .eq('room_id', roomRef.current.id)
+            .eq('song_id', currentSong.id)
+            .eq('artist_correct', true)
+            .eq('title_correct', true)
+          setCorrectCount(count ?? 0)
+        }
+
         if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500)
       }
       pollFnRef.current = doPoll
@@ -349,7 +362,14 @@ export default function Play() {
                   : <div style={{width:'100px', height:'100px', backgroundColor:'#f0f0f0', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'36px', margin:'0 auto 16px'}}>🎤</div>
                 }
                 <p style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
-                <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
+                <p style={{fontSize:'15px', color:'#666', marginBottom:'12px'}}>{currentSong?.artist}</p>
+                <p style={{fontSize:'13px', color:'#666'}}>
+                  {correctCount === 0
+                    ? 'Personne n\'a trouvé 😅'
+                    : correctCount === players.length
+                    ? 'Tout le monde a trouvé ! 🎉'
+                    : `🎯 ${correctCount} / ${players.length} joueurs ont trouvé`}
+                </p>
               </div>
               {result ? (
                 <div style={{textAlign:'center', marginBottom:'24px'}}>

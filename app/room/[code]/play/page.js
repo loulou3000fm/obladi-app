@@ -38,8 +38,9 @@ export default function Play() {
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
-  const pollFnRef = useRef(null)
-  const pollTimeoutRef = useRef(null)
+  const channelRef = useRef(null)
+  const realtimeRef = useRef(null)
+  const playersIntervalRef = useRef(null)
 
   useEffect(() => {
     let stopped = false
@@ -74,71 +75,82 @@ export default function Play() {
       const { data: playersData } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id, total_score)').eq('room_id', roomData.id).order('score', { ascending: false })
       setPlayers(playersData || [])
 
-      async function doPoll() {
-        if (!roomRef.current) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
-        const response = await fetch(`/api/room-state?code=${roomRef.current.code}`, { cache: 'no-store' })
-        const freshRoom = await response.json()
-        if (!freshRoom) { if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500); return }
+      if (stopped) return
 
-        if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
-        if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
-
-        if (freshRoom.status === 'playing' && ['intro', 'playing', 'reveal'].includes(freshRoom.phase)) {
-          fetch('/api/game-tick', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ room_code: roomRef.current.code })
-          }).catch(() => {})
-        }
-
-        phaseStartedAtRef.current = freshRoom.phase_started_at
-        if (freshRoom.phase !== gamePhaseRef.current) {
-          gamePhaseRef.current = freshRoom.phase
-          setGamePhase(freshRoom.phase)
-        }
-        if (freshRoom.current_song_index !== currentIndexRef.current) {
-          currentIndexRef.current = freshRoom.current_song_index
-          setCurrentIndex(freshRoom.current_song_index)
-          hasSubmittedRef.current = false
-          pendingPointsRef.current = 0
-          artistAnswerRef.current = ''
-          titleAnswerRef.current = ''
-          setResult(null)
-          setArtistAnswer('')
-          setTitleAnswer('')
-          setArtistFeedback(null)
-          setTitleFeedback(null)
-          setFrozen(false)
-        }
-
-        const supabase = createClient()
-        const { data: freshPlayers } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id, total_score)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
-        setPlayers(freshPlayers || [])
-
-        const currentSong = songsRef.current[currentIndexRef.current]
-        if (freshRoom.phase === 'reveal' && currentSong) {
-          const { count: ca } = await supabase.from('answers')
-            .select('*', { count: 'exact', head: true })
-            .eq('room_id', roomRef.current.id)
-            .eq('song_id', currentSong.id)
-            .eq('artist_correct', true)
-          setCorrectArtistCount(ca ?? 0)
-          const { count: ct } = await supabase.from('answers')
-            .select('*', { count: 'exact', head: true })
-            .eq('room_id', roomRef.current.id)
-            .eq('song_id', currentSong.id)
-            .eq('title_correct', true)
-          setCorrectTitleCount(ct ?? 0)
-        }
-
-        if (!stopped) pollTimeoutRef.current = setTimeout(doPoll, 500)
+      // Rafraîchit le classement (peu critique → polling léger 3s)
+      async function refreshPlayers() {
+        if (!roomRef.current) return
+        const sb = createClient()
+        const { data } = await sb.from('room_players').select('*, profiles(pseudo, avatar_id, total_score)').eq('room_id', roomRef.current.id).order('score', { ascending: false })
+        if (!stopped) setPlayers(data || [])
       }
-      pollFnRef.current = doPoll
-      doPoll()
+
+      // Rafraîchit les compteurs "X/N ont trouvé" affichés au reveal
+      async function refreshRevealCounts() {
+        if (!roomRef.current) return
+        const song = songsRef.current[currentIndexRef.current]
+        if (!song) return
+        const sb = createClient()
+        const { count: ca } = await sb.from('answers').select('*', { count: 'exact', head: true }).eq('room_id', roomRef.current.id).eq('song_id', song.id).eq('artist_correct', true)
+        const { count: ct } = await sb.from('answers').select('*', { count: 'exact', head: true }).eq('room_id', roomRef.current.id).eq('song_id', song.id).eq('title_correct', true)
+        if (!stopped) { setCorrectArtistCount(ca ?? 0); setCorrectTitleCount(ct ?? 0) }
+      }
+
+      // Si on arrive directement en plein reveal, on charge les compteurs tout de suite
+      if (gamePhaseRef.current === 'reveal') refreshRevealCounts()
+
+      // Phases pilotées en push via Supabase Realtime (plus de polling /api/room-state)
+      const supabaseRealtime = createClient()
+      const channel = supabaseRealtime
+        .channel(`room-${roomData.id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'rooms',
+          filter: `id=eq.${roomData.id}`
+        }, (payload) => {
+          const freshRoom = payload.new
+          if (freshRoom.status === 'finished') { stopped = true; router.push(`/room/${code}/results`); return }
+          if (freshRoom.status === 'interrupted') { stopped = true; router.push(`/room/${code}/interrupted`); return }
+
+          phaseStartedAtRef.current = freshRoom.phase_started_at
+          if (freshRoom.phase !== gamePhaseRef.current) {
+            gamePhaseRef.current = freshRoom.phase
+            setGamePhase(freshRoom.phase)
+            if (freshRoom.phase === 'reveal') refreshRevealCounts()
+          }
+          if (freshRoom.current_song_index !== currentIndexRef.current) {
+            currentIndexRef.current = freshRoom.current_song_index
+            setCurrentIndex(freshRoom.current_song_index)
+            hasSubmittedRef.current = false
+            pendingPointsRef.current = 0
+            artistAnswerRef.current = ''
+            titleAnswerRef.current = ''
+            setResult(null)
+            setArtistAnswer('')
+            setTitleAnswer('')
+            setArtistFeedback(null)
+            setTitleFeedback(null)
+            setFrozen(false)
+          }
+        })
+        .subscribe()
+      realtimeRef.current = supabaseRealtime
+      channelRef.current = channel
+
+      // Classement : polling léger toutes les 3s (room_players + compteurs si on est au reveal)
+      playersIntervalRef.current = setInterval(() => {
+        refreshPlayers()
+        if (gamePhaseRef.current === 'reveal') refreshRevealCounts()
+      }, 3000)
     }
 
     init()
-    return () => { stopped = true; clearTimeout(pollTimeoutRef.current); pollFnRef.current = null }
+    return () => {
+      stopped = true
+      clearInterval(playersIntervalRef.current)
+      if (realtimeRef.current && channelRef.current) realtimeRef.current.removeChannel(channelRef.current)
+    }
   }, [code])
 
   useEffect(() => {
@@ -148,19 +160,6 @@ export default function Play() {
       setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
     }, 250)
     return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    function handleVisibility() {
-      if (document.visibilityState !== 'visible') return
-      const gp = gamePhaseRef.current
-      const duration = gp === 'intro' ? INTRO_DURATION : gp === 'playing' ? PLAY_DURATION : REVEAL_DURATION
-      setCountdown(Math.ceil(remainingSeconds(phaseStartedAtRef.current, duration)))
-      clearTimeout(pollTimeoutRef.current)
-      if (pollFnRef.current) pollFnRef.current()
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   function handleArtistChange(e) {

@@ -246,7 +246,7 @@ export default function HostRoom() {
                     <p style={{fontSize:'12px', color:'#999', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'4px'}}>
                       {gamePhase === 'intro' ? 'Intro' : gamePhase === 'playing' ? 'Écoute' : 'Révélation'}
                     </p>
-                    <p style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>Morceau {currentIndex + 1} / {songs.length}</p>
+                    <p style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>{gamePhase === 'intro' ? 'Compte à rebours lancement' : `Morceau ${currentIndex + 1} / ${songs.length}`}</p>
                   </div>
                   <div>
                     <span style={{fontSize:'48px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111'}}>{countdown}</span>

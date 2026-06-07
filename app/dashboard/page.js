@@ -44,6 +44,11 @@ export default function Dashboard() {
     loadProfile()
   }, [])
 
+  useEffect(() => {
+    const interval = setInterval(() => { refreshRooms() }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()

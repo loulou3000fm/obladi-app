@@ -34,6 +34,7 @@ export default function Play() {
   const artistAnswerRef = useRef('')
   const titleAnswerRef = useRef('')
   const hasSubmittedRef = useRef(false)
+  const pendingPointsRef = useRef(0)
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
@@ -99,6 +100,7 @@ export default function Play() {
           currentIndexRef.current = freshRoom.current_song_index
           setCurrentIndex(freshRoom.current_song_index)
           hasSubmittedRef.current = false
+          pendingPointsRef.current = 0
           artistAnswerRef.current = ''
           titleAnswerRef.current = ''
           setResult(null)
@@ -253,7 +255,9 @@ export default function Play() {
       const newScore = myScoreRef.current + points
       myScoreRef.current = newScore
       setMyScore(newScore)
-      await supabase.from('room_players').update({ score: newScore }).eq('room_id', roomRef.current.id).eq('player_id', userRef.current.id)
+      // On ne pousse pas le score en base tout de suite : il sera envoyé au reveal
+      // pour que le classement ne se mette à jour qu'à ce moment-là.
+      pendingPointsRef.current = points
     }
   }
 
@@ -263,7 +267,16 @@ export default function Play() {
   }
 
   useEffect(() => {
-    if (gamePhase === 'reveal') handleSubmit()
+    if (gamePhase !== 'reveal') return
+    ;(async () => {
+      // On attend que handleSubmit ait calculé/enregistré les points (sauf si déjà soumis)
+      await handleSubmit()
+      if (pendingPointsRef.current > 0) {
+        const supabase = createClient()
+        await supabase.from('room_players').update({ score: myScoreRef.current }).eq('room_id', roomRef.current.id).eq('player_id', userRef.current.id)
+        pendingPointsRef.current = 0
+      }
+    })()
   }, [gamePhase])
 
   if (!room || songsRef.current.length === 0) return (

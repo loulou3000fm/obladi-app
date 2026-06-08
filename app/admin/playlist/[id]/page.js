@@ -16,6 +16,7 @@ export default function PlaylistAdmin() {
   const [importing, setImporting] = useState(false)
   const [importedCount, setImportedCount] = useState(0)
   const [playingId, setPlayingId] = useState(null)
+  const [addedSongs, setAddedSongs] = useState(new Set())
   const [editingYoutube, setEditingYoutube] = useState(null)
   const [youtubeInput, setYoutubeInput] = useState('')
   const [dragIndex, setDragIndex] = useState(null)
@@ -65,6 +66,7 @@ export default function PlaylistAdmin() {
     }
     const { data } = await supabase.from('songs').insert(song).select().single()
     setSongs(prev => [...prev, data])
+    setAddedSongs(prev => new Set(prev).add(track.id))
     await supabase.from('playlists').update({ songs_count: songs.length + 1 }).eq('id', id)
     setPlaylist(prev => ({ ...prev, songs_count: (prev.songs_count || 0) + 1 }))
   }
@@ -253,8 +255,8 @@ export default function PlaylistAdmin() {
                     {track.youtube_id && (
                       <span style={{fontSize:'11px', color:'#1D9E75', backgroundColor:'#E1F5EE', padding:'2px 8px', borderRadius:'99px'}}>▶ YouTube</span>
                     )}
-                    <button onClick={() => addSong(track)} style={{padding:'6px 14px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'6px', fontSize:'12px', cursor:'pointer'}}>
-                      + Ajouter
+                    <button onClick={() => addSong(track)} disabled={addedSongs.has(track.id)} style={{padding:'6px 14px', backgroundColor: addedSongs.has(track.id) ? '#16a34a' : '#111', color:'#fff', border:'none', borderRadius:'6px', fontSize:'12px', cursor: addedSongs.has(track.id) ? 'default' : 'pointer'}}>
+                      {addedSongs.has(track.id) ? '✓ Ajouté' : '+ Ajouter'}
                     </button>
                   </div>
                 </div>

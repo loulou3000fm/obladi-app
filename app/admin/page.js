@@ -42,11 +42,7 @@ export default function Admin() {
     setLoading(true)
     const supabase = createClient()
     const { data } = await supabase.from('playlists').insert({ name, theme }).select().single()
-    setPlaylists(prev => [data, ...prev])
-    setName('')
-    setTheme('')
-    setShowCreate(false)
-    setLoading(false)
+    router.push('/admin/playlist/' + data.id)
   }
 
   async function deletePlaylist(id) {

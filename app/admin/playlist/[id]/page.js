@@ -17,6 +17,9 @@ export default function PlaylistAdmin() {
   const [importedCount, setImportedCount] = useState(0)
   const [playingId, setPlayingId] = useState(null)
   const [addedSongs, setAddedSongs] = useState(new Set())
+  const [autoSearchingId, setAutoSearchingId] = useState(null)
+  const [notFoundIds, setNotFoundIds] = useState(new Set())
+  const [searchingAll, setSearchingAll] = useState(false)
   const [editingYoutube, setEditingYoutube] = useState(null)
   const [youtubeInput, setYoutubeInput] = useState('')
   const [dragIndex, setDragIndex] = useState(null)
@@ -174,6 +177,43 @@ export default function PlaylistAdmin() {
     if (data.error) { console.error('reorder error:', data.error); loadData() }
   }
 
+  async function autoSearch(song) {
+    setAutoSearchingId(song.id)
+    setNotFoundIds(prev => { const n = new Set(prev); n.delete(song.id); return n })
+    try {
+      const res = await fetch(`/api/music?type=youtube&q=${encodeURIComponent(song.artist + ' ' + song.title)}`)
+      const data = await res.json()
+      if (data.youtube_id) {
+        const upd = await fetch('/api/update-song', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ song_id: song.id, youtube_id: data.youtube_id })
+        })
+        const updData = await upd.json()
+        if (!updData.error) {
+          setSongs(prev => prev.map(s => s.id === song.id ? { ...s, youtube_id: data.youtube_id } : s))
+          setAutoSearchingId(null)
+          return true
+        }
+      }
+    } catch {}
+    // Rien trouvé (ou erreur de sauvegarde) : feedback ❌ temporaire
+    setAutoSearchingId(null)
+    setNotFoundIds(prev => new Set(prev).add(song.id))
+    setTimeout(() => setNotFoundIds(prev => { const n = new Set(prev); n.delete(song.id); return n }), 2000)
+    return false
+  }
+
+  async function autoSearchAll() {
+    setSearchingAll(true)
+    const targets = songs.filter(s => !s.youtube_id)
+    for (const s of targets) {
+      await autoSearch(s)
+      await new Promise(r => setTimeout(r, 500))
+    }
+    setSearchingAll(false)
+  }
+
   if (!playlist) return <div style={{padding:'48px', fontFamily:'system-ui', color:'#999', fontSize:'14px'}}>Chargement...</div>
 
   return (
@@ -267,7 +307,15 @@ export default function PlaylistAdmin() {
 
         {/* Liste des chansons */}
         <div>
-          <h3 style={{fontSize:'14px', fontWeight:'500', color:'#111', margin:'0 0 12px'}}>Chansons de la playlist</h3>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px', margin:'0 0 12px', flexWrap:'wrap'}}>
+            <h3 style={{fontSize:'14px', fontWeight:'500', color:'#111', margin:0}}>Chansons de la playlist</h3>
+            {songs.some(s => !s.youtube_id) && (
+              <button onClick={autoSearchAll} disabled={searchingAll}
+                style={{padding:'6px 14px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'12px', cursor: searchingAll ? 'default' : 'pointer', color:'#111'}}>
+                {searchingAll ? '⏳ Recherche...' : `🔍 Tout chercher (${songs.filter(s => !s.youtube_id).length})`}
+              </button>
+            )}
+          </div>
           {songs.length === 0 ? (
             <div style={{padding:'32px', border:'1px solid #f0f0f0', borderRadius:'12px', textAlign:'center'}}>
               <p style={{fontSize:'14px', color:'#999'}}>Aucune chanson encore.</p>
@@ -325,6 +373,12 @@ export default function PlaylistAdmin() {
                     <button onClick={() => togglePreview(song)} disabled={!song.youtube_id} style={{padding:'6px 14px', backgroundColor: playingId === song.id ? '#f0f9ff' : '#f8f8f8', border:'1px solid #e8e8e8', borderRadius:'6px', fontSize:'12px', cursor: song.youtube_id ? 'pointer' : 'default', color:'#111'}}>
                       {playingId === song.id ? '⏸ Stop' : '▶ Preview'}
                     </button>
+                    {!song.youtube_id && (
+                      <button onClick={() => autoSearch(song)} disabled={autoSearchingId === song.id || searchingAll}
+                        style={{padding:'6px 10px', backgroundColor:'transparent', border:`1px solid ${notFoundIds.has(song.id) ? '#fee2e2' : '#e0e0e0'}`, borderRadius:'6px', fontSize:'11px', cursor: (autoSearchingId === song.id || searchingAll) ? 'default' : 'pointer', color: notFoundIds.has(song.id) ? '#ef4444' : '#666', flexShrink:0}}>
+                        {autoSearchingId === song.id ? '⏳' : notFoundIds.has(song.id) ? '❌ Non trouvé' : '🔍 Auto'}
+                      </button>
+                    )}
                     {editingYoutube === song.id ? (
                       <div className="pl-yt-edit" style={{display:'flex', gap:'4px', alignItems:'center'}}>
                         <input

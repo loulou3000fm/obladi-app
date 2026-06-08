@@ -68,5 +68,16 @@ export async function GET(request) {
     return NextResponse.json(tracksWithYoutube)
   }
 
+  if (type === 'youtube') {
+    const query = searchParams.get('q')
+    if (!query) return NextResponse.json({ error: 'q required' }, { status: 400 })
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query + ' official video')}&type=video&maxResults=1&key=${process.env.YOUTUBE_API_KEY}`
+    )
+    const data = await res.json()
+    const youtube_id = data.items?.[0]?.id?.videoId || null
+    return NextResponse.json({ youtube_id })
+  }
+
   return NextResponse.json({ error: 'Invalid type' })
 }

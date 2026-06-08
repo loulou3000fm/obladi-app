@@ -23,6 +23,7 @@ export default function Play() {
   const [frozen, setFrozen] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -192,7 +193,7 @@ export default function Play() {
   }, [])
 
   // iOS : pilote l'élément <audio> (preview Deezer) selon la phase.
-  // Le déblocage audio a été fait depuis le lobby (geste "Je suis prêt").
+  // Le déverrouillage iOS est fait par le bouton "Activer le son" de CETTE page (geste utilisateur).
   useEffect(() => {
     if (!isIOS) return
     const audio = audioRef.current
@@ -203,6 +204,27 @@ export default function Play() {
       audio.pause()
     }
   }, [gamePhase, isIOS, currentIndex])
+
+  // Déverrouille l'élément <audio> persistant via un geste utilisateur (requis par iOS/WebKit).
+  // On joue l'élément en muted puis on le met en pause immédiatement : pas de bip audible,
+  // mais l'élément devient autorisé à jouer par programme pour TOUTE la partie.
+  async function unlockAudioIOS() {
+    const audio = audioRef.current
+    if (audio) {
+      try {
+        audio.muted = true
+        await audio.play()
+        audio.pause()
+        audio.currentTime = 0
+        audio.muted = false
+      } catch {}
+    }
+    setAudioUnlocked(true)
+    // Si on déverrouille alors qu'un morceau est déjà en cours, on lance sa lecture tout de suite.
+    if (gamePhaseRef.current === 'playing' && audio) {
+      audio.play().catch(() => {})
+    }
+  }
 
   function handleArtistChange(e) {
     const val = e.target.value
@@ -331,6 +353,15 @@ export default function Play() {
   const currentSong = songsRef.current[currentIndex]
   const phaseKey = `${gamePhase}-${currentIndex}`
 
+  const audioUnlockPrompt = isIOS && !audioUnlocked ? (
+    <button
+      onClick={unlockAudioIOS}
+      style={{marginTop:'24px', padding:'14px 28px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor:'pointer', boxSizing:'border-box', maxWidth:'400px', width:'100%'}}
+    >
+      🔊 Activer le son
+    </button>
+  ) : null
+
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
 
@@ -411,6 +442,7 @@ export default function Play() {
                 <li>🥇 Bonus pour le premier à trouver !</li>
                 <li>🎯 5 pts par bonne réponse + bonus premiers</li>
               </ul>
+              {audioUnlockPrompt}
             </>
           )}
 
@@ -424,6 +456,7 @@ export default function Play() {
               {isIOS && !currentSong?.preview_url && (
                 <p style={{fontSize:'13px', color:'#999', marginTop:'-16px', marginBottom:'24px'}}>🔇 Pas d'audio disponible</p>
               )}
+              {audioUnlockPrompt && <div style={{marginBottom:'24px'}}>{audioUnlockPrompt}</div>}
               <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
                 <div>
                   <input

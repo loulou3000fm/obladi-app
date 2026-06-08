@@ -21,6 +21,8 @@ export default function Play() {
   const [titleFeedback, setTitleFeedback] = useState(null)
   const [frozen, setFrozen] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+  const [iosSoundEnabled, setIosSoundEnabled] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -183,6 +185,29 @@ export default function Play() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+    setIsIOS(ios)
+    if (!ios) setIosSoundEnabled(true)
+  }, [])
+
+  function enableIOSSound() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (Ctx) {
+        const ctx = new Ctx()
+        ctx.resume()
+        // Buffer silencieux pour débloquer l'audio iOS via un geste utilisateur
+        const buffer = ctx.createBuffer(1, 1, 22050)
+        const source = ctx.createBufferSource()
+        source.buffer = buffer
+        source.connect(ctx.destination)
+        source.start(0)
+      }
+    } catch {}
+    setIosSoundEnabled(true)
+  }
+
   function handleArtistChange(e) {
     const val = e.target.value
     setArtistAnswer(val)
@@ -334,10 +359,19 @@ export default function Play() {
         }
       `}</style>
 
+      {isIOS && !iosSoundEnabled && (
+        <div
+          onClick={enableIOSSound}
+          style={{position:'fixed', top:0, left:0, right:0, zIndex:9999, backgroundColor:'#111', color:'#fff', padding:'12px 16px', textAlign:'center', fontSize:'14px', fontWeight:'500', cursor:'pointer'}}
+        >
+          🔊 Appuie ici pour activer le son
+        </div>
+      )}
+
       {gamePhase === 'playing' && currentSong?.youtube_id && (
         <div style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}}>
           <iframe
-            key={currentIndex}
+            key={`${currentIndex}-${iosSoundEnabled}`}
             width="1" height="1"
             src={`https://www.youtube.com/embed/${currentSong.youtube_id}?autoplay=1&controls=0&mute=0`}
             allow="autoplay"

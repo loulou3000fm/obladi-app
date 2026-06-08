@@ -7,6 +7,9 @@ import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, check
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
+// Clip WAV silencieux mais AUDIBLE (non muted) pour déverrouiller l'audio iOS via un geste utilisateur
+const SILENT_WAV = 'data:audio/wav;base64,UklGRuQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+
 export default function Play() {
   const { code } = useParams()
   const router = useRouter()
@@ -199,30 +202,42 @@ export default function Play() {
     const audio = audioRef.current
     if (!audio) return
     if (gamePhase === 'playing') {
-      audio.play().catch(() => {})
+      const song = songsRef.current[currentIndexRef.current]
+      if (song?.preview_url) {
+        audio.src = '/api/preview?url=' + encodeURIComponent(song.preview_url)
+        audio.currentTime = 0
+        audio.play().catch(() => {})
+      } else {
+        audio.pause()
+      }
     } else {
       audio.pause()
     }
   }, [gamePhase, isIOS, currentIndex])
 
   // Déverrouille l'élément <audio> persistant via un geste utilisateur (requis par iOS/WebKit).
-  // On joue l'élément en muted puis on le met en pause immédiatement : pas de bip audible,
-  // mais l'élément devient autorisé à jouer par programme pour TOUTE la partie.
+  // On joue un clip AUDIBLE (non muted) mais silencieux : iOS autorise alors la lecture
+  // programmée pour TOUTE la partie, sans bruit ni spoiler du 1er morceau.
   async function unlockAudioIOS() {
     const audio = audioRef.current
     if (audio) {
       try {
-        audio.muted = true
+        audio.src = SILENT_WAV
+        audio.muted = false
         await audio.play()
         audio.pause()
         audio.currentTime = 0
-        audio.muted = false
       } catch {}
     }
     setAudioUnlocked(true)
     // Si on déverrouille alors qu'un morceau est déjà en cours, on lance sa lecture tout de suite.
     if (gamePhaseRef.current === 'playing' && audio) {
-      audio.play().catch(() => {})
+      const song = songsRef.current[currentIndexRef.current]
+      if (song?.preview_url) {
+        audio.src = '/api/preview?url=' + encodeURIComponent(song.preview_url)
+        audio.currentTime = 0
+        audio.play().catch(() => {})
+      }
     }
   }
 
@@ -400,11 +415,11 @@ export default function Play() {
         </div>
       )}
 
-      {isIOS && currentSong && (
+      {isIOS && (
         <audio
           ref={audioRef}
-          src={currentSong.preview_url ? '/api/preview?url=' + encodeURIComponent(currentSong.preview_url) : null}
           preload="auto"
+          playsInline
         />
       )}
 

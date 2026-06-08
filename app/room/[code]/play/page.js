@@ -41,6 +41,7 @@ export default function Play() {
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
+  const audioRef = useRef(null)
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
@@ -191,6 +192,18 @@ export default function Play() {
     if (!ios) setIosSoundEnabled(true)
   }, [])
 
+  // iOS : pilote l'élément <audio> (preview Deezer) selon la phase
+  useEffect(() => {
+    if (!isIOS) return
+    const audio = audioRef.current
+    if (!audio) return
+    if (gamePhase === 'playing') {
+      audio.play().catch(() => {})
+    } else {
+      audio.pause()
+    }
+  }, [gamePhase, isIOS, currentIndex])
+
   function enableIOSSound() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext
@@ -205,6 +218,13 @@ export default function Play() {
         source.start(0)
       }
     } catch {}
+    // Débloque aussi l'élément <audio> dans le geste utilisateur
+    const audio = audioRef.current
+    if (audio) {
+      audio.play().then(() => {
+        if (gamePhaseRef.current !== 'playing') audio.pause()
+      }).catch(() => {})
+    }
     setIosSoundEnabled(true)
   }
 
@@ -368,7 +388,7 @@ export default function Play() {
         </div>
       )}
 
-      {gamePhase === 'playing' && currentSong?.youtube_id && (
+      {!isIOS && gamePhase === 'playing' && currentSong?.youtube_id && (
         <div style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}}>
           <iframe
             key={`${currentIndex}-${iosSoundEnabled}`}
@@ -378,6 +398,14 @@ export default function Play() {
             title="audio-player"
           />
         </div>
+      )}
+
+      {isIOS && currentSong && (
+        <audio
+          ref={audioRef}
+          src={currentSong.preview_url ? '/api/preview?url=' + encodeURIComponent(currentSong.preview_url) : null}
+          preload="auto"
+        />
       )}
 
       <div className="play-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>
@@ -424,6 +452,9 @@ export default function Play() {
               <div className="play-count" style={{fontSize:'56px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginBottom:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
                 {countdown}<span style={{fontSize:'18px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>
+              {isIOS && !currentSong?.preview_url && (
+                <p style={{fontSize:'13px', color:'#999', marginTop:'-16px', marginBottom:'24px'}}>🔇 Pas d'audio disponible</p>
+              )}
               <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
                 <div>
                   <input

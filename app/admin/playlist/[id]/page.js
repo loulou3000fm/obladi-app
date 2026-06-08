@@ -355,6 +355,9 @@ export default function PlaylistAdmin() {
                     ) : (
                       <span style={{fontSize:'11px', color:'#999', backgroundColor:'#f0f0f0', padding:'2px 8px', borderRadius:'99px'}}>Pas de vidéo</span>
                     )}
+                    {!song.preview_url && (
+                      <span style={{fontSize:'11px', color:'#999', backgroundColor:'#f0f0f0', padding:'2px 8px', borderRadius:'99px'}}>Pas de preview</span>
+                    )}
                     {playingId === song.id && song.youtube_id && (
                       <div style={{position:'fixed', bottom:'24px', right:'24px', zIndex:1000, backgroundColor:'#fff', border:'1px solid #e0e0e0', borderRadius:'12px', padding:'12px', boxShadow:'0 4px 20px rgba(0,0,0,0.1)'}}>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px'}}>

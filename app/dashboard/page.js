@@ -226,7 +226,7 @@ export default function Dashboard() {
               </div>
             ) : (
               sessions.map(s => (
-                <div key={s.id} className="dash-session" style={{display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', border:'1px solid #f0f0f0', borderRadius:'12px'}}>
+                <div key={s.id} className="dash-session" onClick={() => s.room_code && router.push('/room/' + s.room_code + '/recap')} style={{display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', border:'1px solid #f0f0f0', borderRadius:'12px', cursor: s.room_code ? 'pointer' : 'default'}}>
                   <div style={{width:'40px', height:'40px', backgroundColor:'#f0f0f0', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', flexShrink:0}}>
                     🎵
                   </div>

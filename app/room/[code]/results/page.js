@@ -41,6 +41,7 @@ export default function Results() {
             player_id: user.id,
             score: player.score,
             theme: roomData.playlists?.name || 'Général',
+            room_code: roomData.code,
             total_questions: totalQuestions,
             questions_answered: questionsAnswered,
             completed: completed

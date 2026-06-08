@@ -4,11 +4,26 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
+  const deezerId = searchParams.get('deezer_id')
   const url = searchParams.get('url')
-  if (!url) return NextResponse.json({ error: 'No URL' }, { status: 400 })
 
   try {
-    const response = await fetch(url, {
+    // Détermine l'URL cible : preview FRAÎCHE via deezer_id (prioritaire), sinon url fournie (fallback)
+    let targetUrl
+    if (deezerId) {
+      const trackRes = await fetch(`https://api.deezer.com/track/${deezerId}`)
+      const json = await trackRes.json()
+      if (!json || !json.preview) {
+        return NextResponse.json({ error: 'no fresh preview' }, { status: 404 })
+      }
+      targetUrl = json.preview
+    } else if (url) {
+      targetUrl = url
+    } else {
+      return NextResponse.json({ error: 'No URL' }, { status: 400 })
+    }
+
+    const response = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'audio/mpeg,audio/*;q=0.9,*/*;q=0.8',
@@ -17,7 +32,7 @@ export async function GET(request) {
     })
 
     if (!response.ok) {
-      return NextResponse.json({ error: 'Failed' }, { status: response.status })
+      return NextResponse.json({ error: 'Failed', status: response.status }, { status: response.status })
     }
 
     const arrayBuffer = await response.arrayBuffer()

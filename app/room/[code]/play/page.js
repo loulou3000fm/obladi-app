@@ -237,14 +237,19 @@ export default function Play() {
     }
   }
 
-  // Charge + décode une preview (avec cache), en version Promise compatible iOS
-  async function loadBuffer(previewUrl) {
-    if (audioBufferCacheRef.current[previewUrl]) return audioBufferCacheRef.current[previewUrl]
-    const res = await fetch('/api/preview?url=' + encodeURIComponent(previewUrl))
+  // Charge + décode une preview (avec cache), en version Promise compatible iOS.
+  // On privilégie le deezer_id (preview FRAÎCHE générée par le proxy) car les preview_url
+  // stockées ont un jeton qui expire (403).
+  async function loadBuffer(song) {
+    const fetchUrl = song.deezer_id
+      ? '/api/preview?deezer_id=' + encodeURIComponent(song.deezer_id)
+      : '/api/preview?url=' + encodeURIComponent(song.preview_url)
+    if (audioBufferCacheRef.current[fetchUrl]) return audioBufferCacheRef.current[fetchUrl]
+    const res = await fetch(fetchUrl)
     if (!res.ok) throw new Error('proxy HTTP ' + res.status)
     const arr = await res.arrayBuffer()
     const buffer = await new Promise((resolve, reject) => audioCtxRef.current.decodeAudioData(arr, resolve, reject))
-    audioBufferCacheRef.current[previewUrl] = buffer
+    audioBufferCacheRef.current[fetchUrl] = buffer
     return buffer
   }
 
@@ -259,9 +264,9 @@ export default function Play() {
     if (!audioCtxRef.current) return
     stopCurrentSongIOS()
     const song = songsRef.current[currentIndexRef.current]
-    if (!song?.preview_url) { setAudioError(''); return }
+    if (!song?.deezer_id && !song?.preview_url) { setAudioError(''); return }
     try {
-      const buffer = await loadBuffer(song.preview_url)
+      const buffer = await loadBuffer(song)
       const src = audioCtxRef.current.createBufferSource()
       src.buffer = buffer
       src.connect(audioCtxRef.current.destination)

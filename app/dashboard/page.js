@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [activeRooms, setActiveRooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [pendingFriends, setPendingFriends] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -39,6 +40,9 @@ export default function Dashboard() {
 
       const { data: rooms } = await supabase.from('rooms').select('*, playlists(name)').in('status', ['waiting', 'playing']).order('created_at', { ascending: false })
       setActiveRooms(rooms || [])
+
+      const { count: pending } = await supabase.from('friendships').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('addressee_id', user.id)
+      setPendingFriends(pending || 0)
 
       setLoading(false)
     }
@@ -124,6 +128,12 @@ export default function Dashboard() {
         <div className="dash-nav-actions" style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'24px'}}>{AVATARS[profile?.avatar_id] || '🎵'}</span>
           <span className="dash-pseudo" style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>{profile?.pseudo}</span>
+          <a href="/friends" style={{position:'relative', fontSize:'13px', color:'#3b82f6', textDecoration:'none', fontWeight:'500'}}>
+            Amis
+            {pendingFriends > 0 && (
+              <span style={{position:'absolute', top:'-8px', right:'-12px', backgroundColor:'#ef4444', color:'#fff', fontSize:'10px', fontWeight:'600', minWidth:'16px', height:'16px', borderRadius:'99px', display:'inline-flex', alignItems:'center', justifyContent:'center', padding:'0 4px', boxSizing:'border-box'}}>{pendingFriends}</span>
+            )}
+          </a>
           <a href="/profile" style={{fontSize:'13px', color:'#3b82f6', textDecoration:'none', fontWeight:'500'}}>Mon profil →</a>
           <button onClick={handleLogout}
             style={{padding:'6px 14px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'12px', cursor:'pointer', color:'#666'}}>

@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
-
   if (!url) return NextResponse.json({ error: 'No URL' }, { status: 400 })
-
-  console.log('Fetching audio:', url.substring(0, 80))
 
   try {
     const response = await fetch(url, {
@@ -17,26 +16,56 @@ export async function GET(request) {
       }
     })
 
-    console.log('Audio response status:', response.status, 'Content-Type:', response.headers.get('content-type'))
-
     if (!response.ok) {
-      console.log('Audio fetch failed:', response.status)
       return NextResponse.json({ error: 'Failed' }, { status: response.status })
     }
 
-    const buffer = await response.arrayBuffer()
-    console.log('Audio buffer size:', buffer.byteLength)
+    const arrayBuffer = await response.arrayBuffer()
+    const bytes = new Uint8Array(arrayBuffer)
+    const total = bytes.length
 
-    return new NextResponse(buffer, {
+    const range = request.headers.get('range')
+    const match = range && /^bytes=(\d+)-(\d*)$/.exec(range)
+
+    if (match) {
+      const start = parseInt(match[1], 10)
+      let end = match[2] ? parseInt(match[2], 10) : total - 1
+      if (end > total - 1) end = total - 1
+      if (isNaN(start) || start > end || start < 0) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            'Content-Range': `bytes */${total}`,
+            'Accept-Ranges': 'bytes',
+          }
+        })
+      }
+      const length = end - start + 1
+      const chunk = bytes.slice(start, end + 1)
+      return new NextResponse(chunk, {
+        status: 206,
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${total}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(length),
+          'Content-Type': 'audio/mpeg',
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
+    }
+
+    return new NextResponse(bytes, {
+      status: 200,
       headers: {
+        'Content-Length': String(total),
+        'Accept-Ranges': 'bytes',
         'Content-Type': 'audio/mpeg',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': '*',
         'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*',
       }
     })
   } catch (e) {
-    console.log('Audio error:', e.message)
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }

@@ -7,9 +7,6 @@ import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, check
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
-// Clip WAV silencieux mais AUDIBLE (non muted) pour déverrouiller l'audio iOS via un geste utilisateur
-const SILENT_WAV = 'data:audio/wav;base64,UklGRuQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
-
 export default function Play() {
   const { code } = useParams()
   const router = useRouter()
@@ -27,6 +24,7 @@ export default function Play() {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const [audioError, setAudioError] = useState('')
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -45,7 +43,9 @@ export default function Play() {
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
-  const audioRef = useRef(null)
+  const audioCtxRef = useRef(null)
+  const currentSourceRef = useRef(null)
+  const audioBufferCacheRef = useRef({})
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
@@ -195,49 +195,81 @@ export default function Play() {
     setIsIOS(ios)
   }, [])
 
-  // iOS : pilote l'élément <audio> (preview Deezer) selon la phase.
-  // Le déverrouillage iOS est fait par le bouton "Activer le son" de CETTE page (geste utilisateur).
+  // iOS : pilote la lecture (Web Audio API) selon la phase.
   useEffect(() => {
     if (!isIOS) return
-    const audio = audioRef.current
-    if (!audio) return
     if (gamePhase === 'playing') {
-      const song = songsRef.current[currentIndexRef.current]
-      if (song?.preview_url) {
-        audio.src = '/api/preview?url=' + encodeURIComponent(song.preview_url)
-        audio.currentTime = 0
-        audio.play().catch(() => {})
-      } else {
-        audio.pause()
-      }
+      playCurrentSongIOS()
     } else {
-      audio.pause()
+      stopCurrentSongIOS()
     }
   }, [gamePhase, isIOS, currentIndex])
 
-  // Déverrouille l'élément <audio> persistant via un geste utilisateur (requis par iOS/WebKit).
-  // On joue un clip AUDIBLE (non muted) mais silencieux : iOS autorise alors la lecture
-  // programmée pour TOUTE la partie, sans bruit ni spoiler du 1er morceau.
-  async function unlockAudioIOS() {
-    const audio = audioRef.current
-    if (audio) {
-      try {
-        audio.src = SILENT_WAV
-        audio.muted = false
-        await audio.play()
-        audio.pause()
-        audio.currentTime = 0
-      } catch {}
+  // Nettoyage au démontage : on stoppe la source et on ferme l'AudioContext
+  useEffect(() => {
+    return () => {
+      stopCurrentSongIOS()
+      if (audioCtxRef.current) { try { audioCtxRef.current.close() } catch {} }
     }
-    setAudioUnlocked(true)
-    // Si on déverrouille alors qu'un morceau est déjà en cours, on lance sa lecture tout de suite.
-    if (gamePhaseRef.current === 'playing' && audio) {
-      const song = songsRef.current[currentIndexRef.current]
-      if (song?.preview_url) {
-        audio.src = '/api/preview?url=' + encodeURIComponent(song.preview_url)
-        audio.currentTime = 0
-        audio.play().catch(() => {})
+  }, [])
+
+  // Déverrouille l'audio iOS via la Web Audio API, dans le geste utilisateur (tap "Activer le son").
+  async function unlockAudioIOS() {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
       }
+      await audioCtxRef.current.resume()
+      // Buffer silencieux d'1 frame pour finaliser le déverrouillage
+      const ctx = audioCtxRef.current
+      const b = ctx.createBuffer(1, 1, 22050)
+      const s = ctx.createBufferSource()
+      s.buffer = b
+      s.connect(ctx.destination)
+      s.start(0)
+      setAudioUnlocked(true)
+      setAudioError('')
+      if (gamePhaseRef.current === 'playing') {
+        playCurrentSongIOS()
+      }
+    } catch (e) {
+      setAudioError('unlock: ' + e.message)
+    }
+  }
+
+  // Charge + décode une preview (avec cache), en version Promise compatible iOS
+  async function loadBuffer(previewUrl) {
+    if (audioBufferCacheRef.current[previewUrl]) return audioBufferCacheRef.current[previewUrl]
+    const res = await fetch('/api/preview?url=' + encodeURIComponent(previewUrl))
+    if (!res.ok) throw new Error('proxy HTTP ' + res.status)
+    const arr = await res.arrayBuffer()
+    const buffer = await new Promise((resolve, reject) => audioCtxRef.current.decodeAudioData(arr, resolve, reject))
+    audioBufferCacheRef.current[previewUrl] = buffer
+    return buffer
+  }
+
+  function stopCurrentSongIOS() {
+    if (currentSourceRef.current) {
+      try { currentSourceRef.current.stop() } catch {}
+      currentSourceRef.current = null
+    }
+  }
+
+  async function playCurrentSongIOS() {
+    if (!audioCtxRef.current) return
+    stopCurrentSongIOS()
+    const song = songsRef.current[currentIndexRef.current]
+    if (!song?.preview_url) { setAudioError(''); return }
+    try {
+      const buffer = await loadBuffer(song.preview_url)
+      const src = audioCtxRef.current.createBufferSource()
+      src.buffer = buffer
+      src.connect(audioCtxRef.current.destination)
+      src.start(0)
+      currentSourceRef.current = src
+      setAudioError('')
+    } catch (e) {
+      setAudioError('play: ' + e.message)
     }
   }
 
@@ -377,6 +409,10 @@ export default function Play() {
     </button>
   ) : null
 
+  const audioErrorMsg = isIOS && audioError ? (
+    <p style={{fontSize:'12px', color:'#ef4444', marginTop:'8px', textAlign:'center'}}>⚠️ {audioError}</p>
+  ) : null
+
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
 
@@ -415,14 +451,6 @@ export default function Play() {
         </div>
       )}
 
-      {isIOS && (
-        <audio
-          ref={audioRef}
-          preload="auto"
-          playsInline
-        />
-      )}
-
       <div className="play-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'baseline', gap:'2px'}}>
           <span style={{fontSize:'18px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
@@ -458,6 +486,7 @@ export default function Play() {
                 <li>🎯 5 pts par bonne réponse + bonus premiers</li>
               </ul>
               {audioUnlockPrompt}
+              {audioErrorMsg}
             </>
           )}
 
@@ -472,6 +501,7 @@ export default function Play() {
                 <p style={{fontSize:'13px', color:'#999', marginTop:'-16px', marginBottom:'24px'}}>🔇 Pas d'audio disponible</p>
               )}
               {audioUnlockPrompt && <div style={{marginBottom:'24px'}}>{audioUnlockPrompt}</div>}
+              {audioErrorMsg && <div style={{marginBottom:'16px'}}>{audioErrorMsg}</div>}
               <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
                 <div>
                   <input

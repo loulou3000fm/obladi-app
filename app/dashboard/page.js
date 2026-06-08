@@ -122,6 +122,7 @@ export default function Dashboard() {
         <div className="dash-nav-actions" style={{display:'flex', alignItems:'center', gap:'12px'}}>
           <span style={{fontSize:'24px'}}>{AVATARS[profile?.avatar_id] || '🎵'}</span>
           <span className="dash-pseudo" style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>{profile?.pseudo}</span>
+          <a href="/profile" style={{fontSize:'13px', color:'#3b82f6', textDecoration:'none', fontWeight:'500'}}>Mon profil →</a>
           <button onClick={handleLogout}
             style={{padding:'6px 14px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'6px', fontSize:'12px', cursor:'pointer', color:'#666'}}>
             Déconnexion

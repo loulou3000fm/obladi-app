@@ -26,6 +26,7 @@ function FriendRow({ profile, right }) {
 export default function Friends() {
   const router = useRouter()
   const [viewer, setViewer] = useState(null)
+  const [viewerProfile, setViewerProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -43,6 +44,8 @@ export default function Friends() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setViewer(user)
+      const { data: vp } = await supabase.from('profiles').select('id, pseudo, avatar_id, total_score').eq('id', user.id).maybeSingle()
+      setViewerProfile(vp || { id: user.id, pseudo: 'Toi', avatar_id: null, total_score: 0 })
       await loadAll(user.id)
       setLoading(false)
     }
@@ -142,6 +145,7 @@ export default function Friends() {
         @media (max-width: 768px) {
           .friends-nav { padding: 16px 24px !important; }
           .friends-container { padding: 24px 16px !important; }
+          .rank-row { padding: 10px 12px !important; gap: 10px !important; }
         }
       `}</style>
 
@@ -157,6 +161,45 @@ export default function Friends() {
         <h1 style={{fontSize:'28px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'32px'}}>Amis</h1>
 
         {err && <p style={{fontSize:'13px', color:'#ef4444', marginBottom:'16px'}}>{err}</p>}
+
+        {/* Classement entre amis */}
+        <div style={{marginBottom:'40px'}}>
+          <h2 style={{fontSize:'16px', fontWeight:'500', color:'#111', marginBottom:'12px', letterSpacing:'-0.3px'}}>Classement entre amis</h2>
+          <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+            {[
+              ...(viewerProfile ? [{ ...viewerProfile, isViewer: true }] : []),
+              ...mesAmis.map(a => ({ ...a.profile, isViewer: false })),
+            ].sort((x, y) => (y.total_score || 0) - (x.total_score || 0)).map((p, i) => {
+              const lvl = getLevel(p.total_score || 0)
+              const medal = ['🥇', '🥈', '🥉'][i]
+              const inner = (
+                <>
+                  <span style={{fontSize:'14px', width:'30px', textAlign:'center', flexShrink:0}}>{medal || (i + 1)}</span>
+                  <span style={{fontSize:'24px', flexShrink:0}}>{AVATARS[p.avatar_id] || '🎵'}</span>
+                  <div style={{flex:1, minWidth:0}}>
+                    <p style={{fontSize:'14px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                      {p.pseudo || 'Joueur'}{p.isViewer && <span style={{fontSize:'12px', color:'#3b82f6', marginLeft:'6px'}}>toi</span>}
+                    </p>
+                    <p style={{fontSize:'12px', color:'#999'}}>{lvl.emoji} {lvl.name}</p>
+                  </div>
+                  <span style={{fontSize:'14px', fontWeight:'500', color:'#111', flexShrink:0}}>{p.total_score || 0} pts</span>
+                </>
+              )
+              return p.isViewer ? (
+                <div key={p.id} className="rank-row" style={{display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', border:'1px solid #bfdbfe', backgroundColor:'#eff6ff', borderRadius:'12px'}}>
+                  {inner}
+                </div>
+              ) : (
+                <Link key={p.id} href={`/player/${p.id}`} className="rank-row friend-link" style={{display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', border:'1px solid #f0f0f0', borderRadius:'12px', textDecoration:'none', color:'inherit'}}>
+                  {inner}
+                </Link>
+              )
+            })}
+          </div>
+          {mesAmis.length === 0 && (
+            <p style={{fontSize:'13px', color:'#999', marginTop:'12px'}}>Ajoute des amis pour comparer vos scores.</p>
+          )}
+        </div>
 
         {/* A) Recherche */}
         <div style={{marginBottom:'40px'}}>

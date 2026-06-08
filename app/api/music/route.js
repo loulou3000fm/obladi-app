@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
 
+const YOUTUBE_KEYS = [
+  process.env.YOUTUBE_API_KEY,
+  process.env.YOUTUBE_API_KEY_2,
+  process.env.YOUTUBE_API_KEY_3,
+  process.env.YOUTUBE_API_KEY_4,
+].filter(Boolean)
+
 async function findYoutubeVideo(artist, title) {
   const query = `${artist} ${title} official video`
+  const key = YOUTUBE_KEYS[Math.floor(Math.random() * YOUTUBE_KEYS.length)]
   const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${process.env.YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${key}`
   )
   const data = await res.json()
   return data.items?.[0]?.id?.videoId || null
@@ -71,8 +79,9 @@ export async function GET(request) {
   if (type === 'youtube') {
     const query = searchParams.get('q')
     if (!query) return NextResponse.json({ error: 'q required' }, { status: 400 })
+    const key = YOUTUBE_KEYS[Math.floor(Math.random() * YOUTUBE_KEYS.length)]
     const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query + ' official video')}&type=video&maxResults=1&key=${process.env.YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query + ' official video')}&type=video&maxResults=1&key=${key}`
     )
     const data = await res.json()
     const youtube_id = data.items?.[0]?.id?.videoId || null

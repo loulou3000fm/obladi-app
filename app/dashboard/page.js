@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '../../lib/supabase'
 import { getLevel } from '../../lib/game'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const AVATARS = {
   avatar_1: '🎵', avatar_2: '🎸', avatar_3: '🎹',
@@ -17,6 +18,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
+  const [friendsInGame, setFriendsInGame] = useState([])
+  const viewerIdRef = useRef(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -24,6 +27,7 @@ export default function Dashboard() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
+      viewerIdRef.current = user.id
 
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(prof)
@@ -44,6 +48,8 @@ export default function Dashboard() {
       const { count: pending } = await supabase.from('friendships').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('addressee_id', user.id)
       setPendingFriends(pending || 0)
 
+      await loadFriendsInGame(user.id)
+
       setLoading(false)
     }
     loadProfile()
@@ -56,9 +62,16 @@ export default function Dashboard() {
       .channel('dashboard-rooms')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
         refreshRooms()
+        loadFriendsInGame(viewerIdRef.current)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  // Filet : recharge l'encart amis toutes les 12s (room_players ne déclenche pas le channel rooms)
+  useEffect(() => {
+    const interval = setInterval(() => { loadFriendsInGame(viewerIdRef.current) }, 12000)
+    return () => clearInterval(interval)
   }, [])
 
   async function handleLogout() {
@@ -77,6 +90,49 @@ export default function Dashboard() {
       .order('created_at', { ascending: false })
     setActiveRooms(rooms || [])
     setRefreshing(false)
+  }
+
+  // Encart "Tes amis" : amis actuellement dans une room waiting/playing récente
+  async function loadFriendsInGame(viewerId) {
+    if (!viewerId) return
+    try {
+      const supabase = createClient()
+      const { data: fr } = await supabase
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .eq('status', 'accepted')
+        .or(`requester_id.eq.${viewerId},addressee_id.eq.${viewerId}`)
+      const friendIds = (fr || []).map(f => f.requester_id === viewerId ? f.addressee_id : f.requester_id)
+      if (friendIds.length === 0) { setFriendsInGame([]); return }
+
+      const cutoff = Date.now() - 6 * 60 * 60 * 1000
+      const { data: rps } = await supabase
+        .from('room_players')
+        .select('player_id, rooms(id, code, title, status, created_at)')
+        .in('player_id', friendIds)
+
+      const valid = (rps || []).filter(rp =>
+        rp.rooms &&
+        (rp.rooms.status === 'waiting' || rp.rooms.status === 'playing') &&
+        new Date(rp.rooms.created_at).getTime() >= cutoff
+      )
+      if (valid.length === 0) { setFriendsInGame([]); return }
+
+      const presentIds = [...new Set(valid.map(rp => rp.player_id))]
+      const { data: profs } = await supabase.from('profiles').select('id, pseudo, avatar_id, total_score').in('id', presentIds)
+      const profileMap = {}
+      for (const p of (profs || [])) profileMap[p.id] = p
+
+      const byRoom = {}
+      for (const rp of valid) {
+        const r = rp.rooms
+        if (!byRoom[r.id]) byRoom[r.id] = { ...r, friends: [] }
+        byRoom[r.id].friends.push(profileMap[rp.player_id] || { id: rp.player_id, pseudo: 'Joueur', avatar_id: null, total_score: 0 })
+      }
+      setFriendsInGame(Object.values(byRoom))
+    } catch {
+      // silencieux : l'encart disparaît simplement en cas d'erreur
+    }
   }
 
   async function joinRoom(room) {
@@ -106,7 +162,10 @@ export default function Dashboard() {
       <style>{`
         .dash-session-clickable { cursor: pointer; transition: background-color 0.15s; }
         .dash-session-clickable:hover { background-color: #f8f8f8; }
+        .fg-link:hover { text-decoration: underline; }
         @media (max-width: 768px) {
+          .friends-game-card { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; padding: 16px !important; }
+          .fg-join { width: 100% !important; box-sizing: border-box !important; text-align: center !important; }
           .dash-nav { padding: 16px 24px !important; }
           .dash-nav-actions { gap: 8px !important; }
           .dash-pseudo { display: none !important; }
@@ -184,6 +243,42 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Tes amis en jeu */}
+        {friendsInGame.length > 0 && (
+          <div style={{marginBottom:'40px'}}>
+            <h2 style={{fontSize:'18px', fontWeight:'500', color:'#111', marginBottom:'16px', letterSpacing:'-0.3px'}}>👥 Tes amis</h2>
+            <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+              {friendsInGame.map(room => (
+                <div key={room.id} className="friends-game-card" style={{display:'flex', alignItems:'center', gap:'16px', padding:'20px 24px', border:'1px solid #e0e0e0', borderRadius:'12px'}}>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px', flexWrap:'wrap'}}>
+                      <p style={{fontSize:'15px', fontWeight:'500', color:'#111'}}>{room.title || 'Partie'}</p>
+                      <span style={{fontSize:'11px', padding:'2px 8px', borderRadius:'99px', backgroundColor: room.status === 'waiting' ? '#eff6ff' : '#f0f0f0', color: room.status === 'waiting' ? '#3b82f6' : '#666'}}>
+                        {room.status === 'waiting' ? 'En attente' : 'En cours'}
+                      </span>
+                    </div>
+                    <div style={{display:'flex', flexWrap:'wrap', gap:'12px'}}>
+                      {room.friends.map(f => (
+                        <Link key={f.id} href={`/player/${f.id}`} className="fg-link" style={{display:'flex', alignItems:'center', gap:'6px', textDecoration:'none', color:'inherit'}}>
+                          <span style={{fontSize:'18px'}}>{AVATARS[f.avatar_id] || '🎵'}</span>
+                          <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>{f.pseudo}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                  {room.status === 'waiting' ? (
+                    <Link href={`/room/${room.code}`} className="fg-join" style={{padding:'10px 20px', backgroundColor:'#3b82f6', color:'#fff', borderRadius:'8px', fontSize:'13px', fontWeight:'500', textDecoration:'none', flexShrink:0, whiteSpace:'nowrap'}}>
+                      Rejoindre →
+                    </Link>
+                  ) : (
+                    <span style={{fontSize:'13px', color:'#999', flexShrink:0}}>en partie</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Parties en cours */}
         <div style={{marginBottom:'40px'}}>

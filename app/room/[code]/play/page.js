@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../lib/supabase'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, closeAnswer, getLevel } from '../../../../lib/game'
 
@@ -334,6 +335,8 @@ export default function Play() {
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
 
       <style>{`
+        .player-link { color: inherit; text-decoration: none; cursor: pointer; }
+        .player-link:hover { text-decoration: underline; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -511,7 +514,7 @@ export default function Play() {
               <span style={{fontSize:'12px', color:'#999', width:'16px'}}>{i+1}</span>
               <span style={{fontSize:'16px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
               <div style={{flex:1, minWidth:0}}>
-                <p style={{fontSize:'12px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{getLevel(p.profiles?.total_score || 0).emoji} {p.profiles?.pseudo}</p>
+                <p style={{fontSize:'12px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{getLevel(p.profiles?.total_score || 0).emoji} <Link href={`/player/${p.player_id}`} className="player-link">{p.profiles?.pseudo}</Link></p>
                 <p style={{fontSize:'11px', color:'#999'}}>{p.score} pts</p>
               </div>
             </div>
@@ -564,7 +567,7 @@ export default function Play() {
                 <span style={{fontSize:'13px', color:'#999', width:'18px'}}>{i+1}</span>
                 <span style={{fontSize:'22px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
                 <div style={{flex:1, minWidth:0}}>
-                  <p style={{fontSize:'14px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{getLevel(p.profiles?.total_score || 0).emoji} {p.profiles?.pseudo}</p>
+                  <p style={{fontSize:'14px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{getLevel(p.profiles?.total_score || 0).emoji} <Link href={`/player/${p.player_id}`} className="player-link">{p.profiles?.pseudo}</Link></p>
                   <p style={{fontSize:'12px', color:'#999'}}>{p.score} pts</p>
                 </div>
               </div>

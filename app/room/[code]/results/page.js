@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '../../../../lib/supabase'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
@@ -69,6 +70,10 @@ export default function Results() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
+      <style>{`
+        .player-link { color: inherit; text-decoration: none; cursor: pointer; }
+        .player-link:hover { text-decoration: underline; }
+      `}</style>
       <nav style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'24px 48px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'baseline', gap:'2px'}}>
           <span style={{fontSize:'22px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
@@ -94,7 +99,7 @@ export default function Results() {
               return (
                 <div key={p.id} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'8px'}}>
                   <span style={{fontSize:'24px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
-                  <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>{p.profiles?.pseudo}</span>
+                  <span style={{fontSize:'13px', fontWeight:'500', color:'#111'}}><Link href={`/player/${p.player_id}`} className="player-link">{p.profiles?.pseudo}</Link></span>
                   <span style={{fontSize:'12px', color:'#999'}}>{p.score} pts</span>
                   <div style={{width:'100%', height:`${heights[i]}px`, backgroundColor: rank === 0 ? '#fef9c3' : rank === 1 ? '#f0f0f0' : '#fef3e2', borderRadius:'8px 8px 0 0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px'}}>
                     {MEDALS[rank]}
@@ -112,7 +117,7 @@ export default function Results() {
               <span style={{fontSize:'18px', width:'24px', textAlign:'center'}}>{MEDALS[i] || i + 1}</span>
               <span style={{fontSize:'24px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
               <div style={{flex:1}}>
-                <p style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>{p.profiles?.pseudo}</p>
+                <p style={{fontSize:'14px', fontWeight:'500', color:'#111'}}><Link href={`/player/${p.player_id}`} className="player-link">{p.profiles?.pseudo}</Link></p>
               </div>
               <p style={{fontSize:'16px', fontWeight:'500', color:'#111'}}>{p.score} pts</p>
             </div>

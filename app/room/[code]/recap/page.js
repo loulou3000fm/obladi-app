@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '../../../../lib/supabase'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
@@ -86,6 +87,8 @@ export default function Recap() {
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
       <style>{`
+        .player-link { color: inherit; text-decoration: none; cursor: pointer; }
+        .player-link:hover { text-decoration: underline; }
         @media (max-width: 768px) {
           .recap-nav { padding: 16px 24px !important; }
           .recap-container { padding: 24px 16px !important; }
@@ -118,7 +121,7 @@ export default function Recap() {
               return (
                 <div key={p.id} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'8px'}}>
                   <span style={{fontSize:'24px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
-                  <span style={{fontSize:'13px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%'}}>{p.profiles?.pseudo}</span>
+                  <span style={{fontSize:'13px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%'}}><Link href={`/player/${p.player_id}`} className="player-link">{p.profiles?.pseudo}</Link></span>
                   <span style={{fontSize:'12px', color:'#999'}}>{p.score} pts</span>
                   <div style={{width:'100%', height:`${heights[i]}px`, backgroundColor: rank === 0 ? '#fef9c3' : rank === 1 ? '#f0f0f0' : '#fef3e2', borderRadius:'8px 8px 0 0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px'}}>
                     {MEDALS[rank]}
@@ -135,7 +138,7 @@ export default function Recap() {
             <div key={p.id} className="recap-row" style={{display:'flex', alignItems:'center', gap:'12px', padding:'14px 20px', borderBottom: i < players.length - 1 ? '1px solid #f8f8f8' : 'none', backgroundColor: i === 0 ? '#fffbeb' : 'white'}}>
               <span style={{fontSize:'16px', width:'24px', textAlign:'center'}}>{MEDALS[i] || i + 1}</span>
               <span style={{fontSize:'22px'}}>{AVATARS[p.profiles?.avatar_id] || '🎵'}</span>
-              <p style={{flex:1, fontSize:'14px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.profiles?.pseudo}</p>
+              <p style={{flex:1, fontSize:'14px', fontWeight:'500', color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}><Link href={`/player/${p.player_id}`} className="player-link">{p.profiles?.pseudo}</Link></p>
               <p style={{fontSize:'15px', fontWeight:'500', color:'#111'}}>{p.score} pts</p>
             </div>
           ))}

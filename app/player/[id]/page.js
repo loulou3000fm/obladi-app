@@ -13,6 +13,9 @@ export default function PublicProfile() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [viewer, setViewer] = useState(null)
+  const [relation, setRelation] = useState(null)
+  const [friendLoading, setFriendLoading] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -36,10 +39,46 @@ export default function PublicProfile() {
         .limit(20)
       setSessions(hist || [])
 
+      const { data: { user } } = await supabase.auth.getUser()
+      setViewer(user || null)
+      if (user && user.id !== id) {
+        await refreshRelation(user.id)
+      }
+
       setLoading(false)
     }
     load()
   }, [id])
+
+  async function refreshRelation(viewerId) {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('friendships')
+      .select('*')
+      .or(`and(requester_id.eq.${viewerId},addressee_id.eq.${id}),and(requester_id.eq.${id},addressee_id.eq.${viewerId})`)
+    const rows = data || []
+    const accepted = rows.find(f => f.status === 'accepted')
+    if (accepted) { setRelation({ state: 'accepted', friendshipId: accepted.id }); return }
+    const sent = rows.find(f => f.status === 'pending' && f.requester_id === viewerId)
+    if (sent) { setRelation({ state: 'pending_sent', friendshipId: sent.id }); return }
+    const received = rows.find(f => f.status === 'pending' && f.addressee_id === viewerId)
+    if (received) { setRelation({ state: 'pending_received', friendshipId: received.id }); return }
+    setRelation({ state: 'none', friendshipId: null })
+  }
+
+  async function friendAction(action, friendshipId) {
+    if (!viewer || friendLoading) return
+    setFriendLoading(true)
+    try {
+      await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, viewerId: viewer.id, targetId: id, friendshipId })
+      })
+    } catch {}
+    await refreshRelation(viewer.id)
+    setFriendLoading(false)
+  }
 
   function formatDate(dateStr) {
     if (!dateStr) return '—'
@@ -102,6 +141,47 @@ export default function PublicProfile() {
           <h1 className="player-pseudo" style={{fontSize:'40px', fontWeight:'500', letterSpacing:'-1px', color:'#111', marginBottom:'8px', lineHeight:'1.1'}}>{profile.pseudo}</h1>
           <p style={{fontSize:'15px', color:'#666', marginBottom:'4px'}}>{lvl.emoji} {lvl.name}</p>
           {profile.created_at && <p style={{fontSize:'13px', color:'#999'}}>Membre depuis {formatMonth(profile.created_at)}</p>}
+
+          {viewer && viewer.id !== id && relation && (
+            <div style={{display:'flex', gap:'8px', justifyContent:'center', alignItems:'center', flexWrap:'wrap', marginTop:'20px'}}>
+              {relation.state === 'none' && (
+                <button disabled={friendLoading} onClick={() => friendAction('send')}
+                  style={{padding:'10px 20px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer', opacity: friendLoading ? 0.6 : 1}}>
+                  + Ajouter en ami
+                </button>
+              )}
+              {relation.state === 'pending_sent' && (
+                <>
+                  <span style={{fontSize:'14px', color:'#666'}}>Demande envoyée</span>
+                  <button disabled={friendLoading} onClick={() => friendAction('cancel', relation.friendshipId)}
+                    style={{padding:'8px 14px', backgroundColor:'transparent', color:'#999', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'13px', cursor:'pointer', opacity: friendLoading ? 0.6 : 1}}>
+                    Annuler
+                  </button>
+                </>
+              )}
+              {relation.state === 'pending_received' && (
+                <>
+                  <button disabled={friendLoading} onClick={() => friendAction('accept', relation.friendshipId)}
+                    style={{padding:'10px 20px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer', opacity: friendLoading ? 0.6 : 1}}>
+                    Accepter
+                  </button>
+                  <button disabled={friendLoading} onClick={() => friendAction('decline', relation.friendshipId)}
+                    style={{padding:'10px 18px', backgroundColor:'transparent', color:'#ef4444', border:'1px solid #fee2e2', borderRadius:'8px', fontSize:'14px', cursor:'pointer', opacity: friendLoading ? 0.6 : 1}}>
+                    Refuser
+                  </button>
+                </>
+              )}
+              {relation.state === 'accepted' && (
+                <>
+                  <span style={{fontSize:'14px', color:'#16a34a', fontWeight:'500'}}>✓ Amis</span>
+                  <button disabled={friendLoading} onClick={() => friendAction('remove', relation.friendshipId)}
+                    style={{padding:'8px 14px', backgroundColor:'transparent', color:'#ef4444', border:'1px solid #fee2e2', borderRadius:'8px', fontSize:'13px', cursor:'pointer', opacity: friendLoading ? 0.6 : 1}}>
+                    Retirer
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Bio */}

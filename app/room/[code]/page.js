@@ -93,7 +93,21 @@ export default function RoomLobby() {
     setJoined(true)
   }
 
+  function unlockAudio() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (AudioContext) {
+      const ctx = new AudioContext()
+      ctx.resume().then(() => ctx.close()).catch(() => {})
+    }
+    // Créer et jouer un audio silencieux pour débloquer la lecture audio iOS
+    const audio = new Audio()
+    audio.src = 'data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    audio.volume = 0
+    audio.play().catch(() => {})
+  }
+
   async function toggleReady() {
+    unlockAudio()
     const supabase = createClient()
     const newReady = !isReady
     await supabase.from('room_players')

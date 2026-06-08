@@ -68,10 +68,29 @@ export default function Dashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // Filet : recharge l'encart amis toutes les 12s (room_players ne déclenche pas le channel rooms)
+  // Filet de secours : le Realtime est peu fiable sur mobile (websocket throttlé/suspendu),
+  // donc on rafraîchit la liste des parties ET l'encart amis toutes les 10s.
   useEffect(() => {
-    const interval = setInterval(() => { loadFriendsInGame(viewerIdRef.current) }, 12000)
+    const interval = setInterval(() => {
+      refreshRooms()
+      loadFriendsInGame(viewerIdRef.current)
+    }, 10000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Au retour sur la page (crucial sur mobile : l'app est souvent quittée/reprise)
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return
+      refreshRooms()
+      loadFriendsInGame(viewerIdRef.current)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [])
 
   async function handleLogout() {

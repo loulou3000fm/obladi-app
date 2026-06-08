@@ -100,6 +100,8 @@ export default function Dashboard() {
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#ffffff', fontFamily:'system-ui, sans-serif'}}>
       <style>{`
+        .dash-session-clickable { cursor: pointer; transition: background-color 0.15s; }
+        .dash-session-clickable:hover { background-color: #f8f8f8; }
         @media (max-width: 768px) {
           .dash-nav { padding: 16px 24px !important; }
           .dash-nav-actions { gap: 8px !important; }
@@ -227,7 +229,7 @@ export default function Dashboard() {
               </div>
             ) : (
               sessions.map(s => (
-                <div key={s.id} className="dash-session" onClick={() => s.room_code && router.push('/room/' + s.room_code + '/recap')} style={{display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', border:'1px solid #f0f0f0', borderRadius:'12px', cursor: s.room_code ? 'pointer' : 'default'}}>
+                <div key={s.id} className={`dash-session ${s.room_code ? 'dash-session-clickable' : ''}`} onClick={() => s.room_code && router.push(`/room/${s.room_code}/recap`)} style={{display:'flex', alignItems:'center', gap:'16px', padding:'16px 20px', border:'1px solid #f0f0f0', borderRadius:'12px'}}>
                   <div style={{width:'40px', height:'40px', backgroundColor:'#f0f0f0', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', flexShrink:0}}>
                     🎵
                   </div>
@@ -238,6 +240,7 @@ export default function Dashboard() {
                   <div style={{textAlign:'right'}}>
                     <p style={{fontSize:'16px', fontWeight:'500', color:'#111'}}>{s.score} pts</p>
                   </div>
+                  {s.room_code && <span style={{fontSize:'18px', color:'#ccc', flexShrink:0}}>→</span>}
                 </div>
               ))
             )}

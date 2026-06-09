@@ -45,6 +45,7 @@ export default function Play() {
   const myScoreRef = useRef(0)
   const ytPlayerRef = useRef(null)
   const ytReadyRef = useRef(false)
+  const ytContainerRef = useRef(null)
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
@@ -199,13 +200,17 @@ export default function Play() {
     if (!isIOS) return
 
     function createPlayer() {
-      if (!window.YT || !window.YT.Player || ytPlayerRef.current) return
-      ytPlayerRef.current = new window.YT.Player('ios-yt-player', {
+      if (!window.YT || !window.YT.Player || ytPlayerRef.current || !ytContainerRef.current) return
+      // On crée un noeud DOM enfant que React ne réconcilie jamais (le conteneur n'a pas
+      // d'enfants en JSX), pour éviter que React n'écrase l'iframe créée par l'API YouTube.
+      const mount = document.createElement('div')
+      ytContainerRef.current.appendChild(mount)
+      ytPlayerRef.current = new window.YT.Player(mount, {
         height: '1',
         width: '1',
         playerVars: { playsinline: 1, controls: 0, disablekb: 1 },
         events: {
-          onReady: () => { ytReadyRef.current = true },
+          onReady: () => { ytReadyRef.current = true; setAudioError('ready') },
           onError: (e) => setAudioError('yt: ' + e.data),
         },
       })
@@ -249,17 +254,17 @@ export default function Play() {
   // Déverrouille la lecture YouTube iOS dans le geste utilisateur (tap "Activer le son").
   function unlockAudioIOS() {
     try {
-      if (ytPlayerRef.current && ytReadyRef.current) {
-        const song = songsRef.current[currentIndexRef.current]
-        if (gamePhaseRef.current === 'playing' && song?.youtube_id) {
-          ytPlayerRef.current.loadVideoById(song.youtube_id)
-        } else {
-          ytPlayerRef.current.playVideo()
-          ytPlayerRef.current.pauseVideo()
-        }
+      if (!ytPlayerRef.current) { setAudioError('no player'); return }
+      if (!ytReadyRef.current) { setAudioError('player pas encore prêt, retape'); return }
+      const song = songsRef.current[currentIndexRef.current]
+      if (gamePhaseRef.current === 'playing' && song?.youtube_id) {
+        ytPlayerRef.current.loadVideoById(song.youtube_id)
+      } else {
+        ytPlayerRef.current.playVideo()
+        ytPlayerRef.current.pauseVideo()
       }
       setAudioUnlocked(true)
-      setAudioError('')
+      setAudioError('unlocked')
     } catch (e) {
       setAudioError('unlock: ' + e.message)
     }
@@ -444,7 +449,7 @@ export default function Play() {
       )}
 
       {isIOS && (
-        <div id="ios-yt-player" style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}} />
+        <div ref={ytContainerRef} style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}} />
       )}
 
       <div className="play-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>

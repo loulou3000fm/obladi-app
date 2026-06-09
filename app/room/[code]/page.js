@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../lib/supabase'
+import { ensureIOSPlayer, unlockIOSPlayer } from '../../../lib/iosYtPlayer'
 import { useParams, useRouter } from 'next/navigation'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
@@ -83,6 +84,11 @@ export default function RoomLobby() {
     return () => { clearInterval(pollInterval) }
   }, [code])
 
+  // iOS : prépare le player YouTube partagé dès le lobby pour qu'il soit prêt au tap "Je suis prêt"
+  useEffect(() => {
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) ensureIOSPlayer()
+  }, [])
+
   async function joinRoom() {
     const supabase = createClient()
     await supabase.from('room_players').upsert({
@@ -108,6 +114,7 @@ export default function RoomLobby() {
 
   async function toggleReady() {
     unlockAudio()
+    unlockIOSPlayer()
     const supabase = createClient()
     const newReady = !isReady
     await supabase.from('room_players')

@@ -4,6 +4,7 @@ import { createClient } from '../../../../lib/supabase'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, closeAnswer, getLevel } from '../../../../lib/game'
+import { ensureIOSPlayer, unlockIOSPlayer, playIOSVideo, stopIOSVideo, wasIOSUnlocked } from '../../../../lib/iosYtPlayer'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -24,7 +25,6 @@ export default function Play() {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [audioUnlocked, setAudioUnlocked] = useState(false)
-  const [audioError, setAudioError] = useState('')
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -43,9 +43,6 @@ export default function Play() {
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
-  const ytPlayerRef = useRef(null)
-  const ytReadyRef = useRef(false)
-  const ytContainerRef = useRef(null)
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
@@ -195,88 +192,35 @@ export default function Play() {
     setIsIOS(ios)
   }, [])
 
-  // iOS : charge l'API YouTube IFrame et crée un player caché hors écran.
-  // Robuste : on ne dépend pas du seul callback onYouTubeIframeAPIReady (fragile),
-  // on poll jusqu'à ce que l'API soit dispo puis on crée le player.
+  // iOS : s'assure que le player partagé existe, et reflète l'état de déverrouillage
+  // (normalement déjà fait dans le lobby via "Je suis prêt").
   useEffect(() => {
     if (!isIOS) return
-    let cancelled = false
-
-    function tryCreate() {
-      if (cancelled || ytPlayerRef.current) return
-      if (!ytContainerRef.current) return
-      if (!(window.YT && window.YT.Player)) return
-      // Noeud DOM enfant que React ne réconcilie jamais (conteneur sans enfants JSX),
-      // pour éviter que React n'écrase l'iframe créée par l'API YouTube.
-      const mount = document.createElement('div')
-      ytContainerRef.current.appendChild(mount)
-      setAudioError('creating')
-      ytPlayerRef.current = new window.YT.Player(mount, {
-        height: '1',
-        width: '1',
-        playerVars: { playsinline: 1, controls: 0, disablekb: 1 },
-        events: {
-          onReady: () => { ytReadyRef.current = true; setAudioError('ready') },
-          onError: (e) => setAudioError('yt: ' + e.data),
-        },
-      })
-    }
-
-    // Injecte le script de l'API si absent
-    if (!window.YT && !document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-      setAudioError('loading API')
-      const tag = document.createElement('script')
-      tag.src = 'https://www.youtube.com/iframe_api'
-      document.body.appendChild(tag)
-    }
-    const prev = window.onYouTubeIframeAPIReady
-    window.onYouTubeIframeAPIReady = () => { if (prev) { try { prev() } catch {} } tryCreate() }
-
-    tryCreate()
-    const poll = setInterval(() => {
-      if (ytPlayerRef.current) { clearInterval(poll); return }
-      tryCreate()
-    }, 400)
-
-    return () => {
-      cancelled = true
-      clearInterval(poll)
-      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
-        try { ytPlayerRef.current.destroy() } catch {}
-        ytPlayerRef.current = null
-        ytReadyRef.current = false
-      }
-    }
+    ensureIOSPlayer()
+    setAudioUnlocked(wasIOSUnlocked())
+    return () => { stopIOSVideo() }
   }, [isIOS])
 
-  // iOS : pilote la lecture YouTube selon la phase (le player a été activé par le geste).
+  // iOS : pilote la lecture YouTube (player partagé) selon la phase.
   useEffect(() => {
-    if (!isIOS || !ytPlayerRef.current || !ytReadyRef.current) return
+    if (!isIOS) return
     const song = songsRef.current[currentIndexRef.current]
     if (gamePhase === 'playing' && song?.youtube_id) {
-      try { ytPlayerRef.current.loadVideoById(song.youtube_id) } catch (e) { setAudioError('play: ' + e.message) }
+      playIOSVideo(song.youtube_id)
     } else {
-      try { ytPlayerRef.current.stopVideo ? ytPlayerRef.current.stopVideo() : ytPlayerRef.current.pauseVideo() } catch {}
+      stopIOSVideo()
     }
   }, [gamePhase, isIOS, currentIndex, audioUnlocked])
 
-  // Déverrouille la lecture YouTube iOS dans le geste utilisateur (tap "Activer le son").
+  // Repli : si le player n'a pas été déverrouillé dans le lobby (ex. arrivée directe en partie),
+  // ce bouton sur la page de jeu fait le geste de déverrouillage.
   function unlockAudioIOS() {
-    try {
-      if (!ytPlayerRef.current) { setAudioError('no player'); return }
-      if (!ytReadyRef.current) { setAudioError('player pas encore prêt, retape'); return }
-      const song = songsRef.current[currentIndexRef.current]
-      if (gamePhaseRef.current === 'playing' && song?.youtube_id) {
-        ytPlayerRef.current.loadVideoById(song.youtube_id)
-      } else {
-        ytPlayerRef.current.playVideo()
-        ytPlayerRef.current.pauseVideo()
-      }
-      setAudioUnlocked(true)
-      setAudioError('unlocked')
-    } catch (e) {
-      setAudioError('unlock: ' + e.message)
+    unlockIOSPlayer()
+    const song = songsRef.current[currentIndexRef.current]
+    if (gamePhaseRef.current === 'playing' && song?.youtube_id) {
+      playIOSVideo(song.youtube_id)
     }
+    setAudioUnlocked(true)
   }
 
   function handleArtistChange(e) {
@@ -415,10 +359,6 @@ export default function Play() {
     </button>
   ) : null
 
-  const audioErrorMsg = isIOS && audioError ? (
-    <p style={{fontSize:'12px', color:'#ef4444', marginTop:'8px', textAlign:'center'}}>⚠️ {audioError}</p>
-  ) : null
-
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif', display:'flex', flexDirection:'column'}}>
 
@@ -457,10 +397,6 @@ export default function Play() {
         </div>
       )}
 
-      {isIOS && (
-        <div ref={ytContainerRef} style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}} />
-      )}
-
       <div className="play-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>
         <div style={{display:'flex', alignItems:'baseline', gap:'2px'}}>
           <span style={{fontSize:'18px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111'}}>obladi</span>
@@ -496,7 +432,6 @@ export default function Play() {
                 <li>🎯 5 pts par bonne réponse + bonus premiers</li>
               </ul>
               {audioUnlockPrompt}
-              {audioErrorMsg}
             </>
           )}
 
@@ -511,7 +446,6 @@ export default function Play() {
                 <p style={{fontSize:'13px', color:'#999', marginTop:'-16px', marginBottom:'24px'}}>🔇 Pas d'audio disponible</p>
               )}
               {audioUnlockPrompt && <div style={{marginBottom:'24px'}}>{audioUnlockPrompt}</div>}
-              {audioErrorMsg && <div style={{marginBottom:'16px'}}>{audioErrorMsg}</div>}
               <div style={{width:'100%', maxWidth:'400px', display:'flex', flexDirection:'column', gap:'12px'}}>
                 <div>
                   <input

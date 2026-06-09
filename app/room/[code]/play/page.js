@@ -195,16 +195,22 @@ export default function Play() {
     setIsIOS(ios)
   }, [])
 
-  // iOS : charge l'API YouTube IFrame (une fois) et crée un player caché hors écran.
+  // iOS : charge l'API YouTube IFrame et crée un player caché hors écran.
+  // Robuste : on ne dépend pas du seul callback onYouTubeIframeAPIReady (fragile),
+  // on poll jusqu'à ce que l'API soit dispo puis on crée le player.
   useEffect(() => {
     if (!isIOS) return
+    let cancelled = false
 
-    function createPlayer() {
-      if (!window.YT || !window.YT.Player || ytPlayerRef.current || !ytContainerRef.current) return
-      // On crée un noeud DOM enfant que React ne réconcilie jamais (le conteneur n'a pas
-      // d'enfants en JSX), pour éviter que React n'écrase l'iframe créée par l'API YouTube.
+    function tryCreate() {
+      if (cancelled || ytPlayerRef.current) return
+      if (!ytContainerRef.current) return
+      if (!(window.YT && window.YT.Player)) return
+      // Noeud DOM enfant que React ne réconcilie jamais (conteneur sans enfants JSX),
+      // pour éviter que React n'écrase l'iframe créée par l'API YouTube.
       const mount = document.createElement('div')
       ytContainerRef.current.appendChild(mount)
+      setAudioError('creating')
       ytPlayerRef.current = new window.YT.Player(mount, {
         height: '1',
         width: '1',
@@ -216,22 +222,25 @@ export default function Play() {
       })
     }
 
-    if (window.YT && window.YT.Player) {
-      createPlayer()
-    } else {
-      const prev = window.onYouTubeIframeAPIReady
-      window.onYouTubeIframeAPIReady = () => {
-        if (prev) { try { prev() } catch {} }
-        createPlayer()
-      }
-      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-        const tag = document.createElement('script')
-        tag.src = 'https://www.youtube.com/iframe_api'
-        document.body.appendChild(tag)
-      }
+    // Injecte le script de l'API si absent
+    if (!window.YT && !document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      setAudioError('loading API')
+      const tag = document.createElement('script')
+      tag.src = 'https://www.youtube.com/iframe_api'
+      document.body.appendChild(tag)
     }
+    const prev = window.onYouTubeIframeAPIReady
+    window.onYouTubeIframeAPIReady = () => { if (prev) { try { prev() } catch {} } tryCreate() }
+
+    tryCreate()
+    const poll = setInterval(() => {
+      if (ytPlayerRef.current) { clearInterval(poll); return }
+      tryCreate()
+    }, 400)
 
     return () => {
+      cancelled = true
+      clearInterval(poll)
       if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
         try { ytPlayerRef.current.destroy() } catch {}
         ytPlayerRef.current = null

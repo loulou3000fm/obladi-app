@@ -43,9 +43,8 @@ export default function Play() {
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
-  const audioCtxRef = useRef(null)
-  const currentSourceRef = useRef(null)
-  const audioBufferCacheRef = useRef({})
+  const ytPlayerRef = useRef(null)
+  const ytReadyRef = useRef(false)
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
@@ -195,86 +194,74 @@ export default function Play() {
     setIsIOS(ios)
   }, [])
 
-  // iOS : pilote la lecture (Web Audio API) selon la phase.
+  // iOS : charge l'API YouTube IFrame (une fois) et crée un player caché hors écran.
   useEffect(() => {
     if (!isIOS) return
-    if (gamePhase === 'playing') {
-      playCurrentSongIOS()
+
+    function createPlayer() {
+      if (!window.YT || !window.YT.Player || ytPlayerRef.current) return
+      ytPlayerRef.current = new window.YT.Player('ios-yt-player', {
+        height: '1',
+        width: '1',
+        playerVars: { playsinline: 1, controls: 0, disablekb: 1 },
+        events: {
+          onReady: () => { ytReadyRef.current = true },
+          onError: (e) => setAudioError('yt: ' + e.data),
+        },
+      })
+    }
+
+    if (window.YT && window.YT.Player) {
+      createPlayer()
     } else {
-      stopCurrentSongIOS()
-    }
-  }, [gamePhase, isIOS, currentIndex])
-
-  // Nettoyage au démontage : on stoppe la source et on ferme l'AudioContext
-  useEffect(() => {
-    return () => {
-      stopCurrentSongIOS()
-      if (audioCtxRef.current) { try { audioCtxRef.current.close() } catch {} }
-    }
-  }, [])
-
-  // Déverrouille l'audio iOS via la Web Audio API, dans le geste utilisateur (tap "Activer le son").
-  async function unlockAudioIOS() {
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      const prev = window.onYouTubeIframeAPIReady
+      window.onYouTubeIframeAPIReady = () => {
+        if (prev) { try { prev() } catch {} }
+        createPlayer()
       }
-      await audioCtxRef.current.resume()
-      // Buffer silencieux d'1 frame pour finaliser le déverrouillage
-      const ctx = audioCtxRef.current
-      const b = ctx.createBuffer(1, 1, 22050)
-      const s = ctx.createBufferSource()
-      s.buffer = b
-      s.connect(ctx.destination)
-      s.start(0)
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const tag = document.createElement('script')
+        tag.src = 'https://www.youtube.com/iframe_api'
+        document.body.appendChild(tag)
+      }
+    }
+
+    return () => {
+      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
+        try { ytPlayerRef.current.destroy() } catch {}
+        ytPlayerRef.current = null
+        ytReadyRef.current = false
+      }
+    }
+  }, [isIOS])
+
+  // iOS : pilote la lecture YouTube selon la phase (le player a été activé par le geste).
+  useEffect(() => {
+    if (!isIOS || !ytPlayerRef.current || !ytReadyRef.current) return
+    const song = songsRef.current[currentIndexRef.current]
+    if (gamePhase === 'playing' && song?.youtube_id) {
+      try { ytPlayerRef.current.loadVideoById(song.youtube_id) } catch (e) { setAudioError('play: ' + e.message) }
+    } else {
+      try { ytPlayerRef.current.stopVideo ? ytPlayerRef.current.stopVideo() : ytPlayerRef.current.pauseVideo() } catch {}
+    }
+  }, [gamePhase, isIOS, currentIndex, audioUnlocked])
+
+  // Déverrouille la lecture YouTube iOS dans le geste utilisateur (tap "Activer le son").
+  function unlockAudioIOS() {
+    try {
+      if (ytPlayerRef.current && ytReadyRef.current) {
+        const song = songsRef.current[currentIndexRef.current]
+        if (gamePhaseRef.current === 'playing' && song?.youtube_id) {
+          ytPlayerRef.current.loadVideoById(song.youtube_id)
+        } else {
+          ytPlayerRef.current.playVideo()
+          ytPlayerRef.current.pauseVideo()
+        }
+      }
       setAudioUnlocked(true)
       setAudioError('')
-      if (gamePhaseRef.current === 'playing') {
-        playCurrentSongIOS()
-      }
     } catch (e) {
       setAudioError('unlock: ' + e.message)
-    }
-  }
-
-  // Charge + décode une preview (avec cache), en version Promise compatible iOS.
-  // On privilégie le deezer_id (preview FRAÎCHE générée par le proxy) car les preview_url
-  // stockées ont un jeton qui expire (403).
-  async function loadBuffer(song) {
-    const fetchUrl = song.deezer_id
-      ? '/api/preview?deezer_id=' + encodeURIComponent(song.deezer_id)
-      : '/api/preview?url=' + encodeURIComponent(song.preview_url)
-    if (audioBufferCacheRef.current[fetchUrl]) return audioBufferCacheRef.current[fetchUrl]
-    const res = await fetch(fetchUrl)
-    if (!res.ok) throw new Error('proxy HTTP ' + res.status)
-    const arr = await res.arrayBuffer()
-    const buffer = await new Promise((resolve, reject) => audioCtxRef.current.decodeAudioData(arr, resolve, reject))
-    audioBufferCacheRef.current[fetchUrl] = buffer
-    return buffer
-  }
-
-  function stopCurrentSongIOS() {
-    if (currentSourceRef.current) {
-      try { currentSourceRef.current.stop() } catch {}
-      currentSourceRef.current = null
-    }
-  }
-
-  async function playCurrentSongIOS() {
-    if (!audioCtxRef.current) return
-    stopCurrentSongIOS()
-    const song = songsRef.current[currentIndexRef.current]
-    if (!song?.deezer_id && !song?.preview_url) { setAudioError(''); return }
-    try {
-      const buffer = await loadBuffer(song)
-      const src = audioCtxRef.current.createBufferSource()
-      src.buffer = buffer
-      src.connect(audioCtxRef.current.destination)
-      src.start(0)
-      currentSourceRef.current = src
-      setAudioError('')
-    } catch (e) {
-      setAudioError('play: ' + e.message)
     }
   }
 
@@ -454,6 +441,10 @@ export default function Play() {
             title="audio-player"
           />
         </div>
+      )}
+
+      {isIOS && (
+        <div id="ios-yt-player" style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}} />
       )}
 
       <div className="play-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #f0f0f0'}}>

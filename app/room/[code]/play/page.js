@@ -46,6 +46,7 @@ export default function Play() {
   const artistDebounceRef = useRef(null)
   const titleDebounceRef = useRef(null)
   const myScoreRef = useRef(0)
+  const titleInputRef = useRef(null)
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
@@ -490,25 +491,27 @@ export default function Play() {
                     placeholder="Artiste..."
                     disabled={frozen}
                     tabIndex={1}
-                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#16a34a' : artistFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor:'#fff'}}
-                    onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${artistFeedback === 'correct' ? '#16a34a' : artistFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f5f5f5' : '#fff', opacity: frozen ? 0.6 : 1, cursor: frozen ? 'not-allowed' : 'text'}}
+                    onKeyDown={e => { if (e.key === 'Enter' && !frozen) { e.preventDefault(); titleInputRef.current?.focus() } }}
                   />
                   {artistFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Artiste trouvé !</p>}
                   {artistFeedback === 'close' && <p style={{fontSize:'12px', color:'#ea580c', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>Pas loin !</p>}
                 </div>
                 <div>
                   <input
+                    ref={titleInputRef}
                     value={titleAnswer}
                     onChange={handleTitleChange}
                     placeholder="Titre..."
                     disabled={frozen}
                     tabIndex={2}
-                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#16a34a' : titleFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor:'#fff'}}
-                    onKeyDown={e => e.key === 'Enter' && !frozen && handleFiger()}
+                    style={{width:'100%', padding:'14px 16px', border:`1px solid ${titleFeedback === 'correct' ? '#16a34a' : titleFeedback === 'close' ? '#f59e0b' : '#e0e0e0'}`, borderRadius:'8px', fontSize:'16px', outline:'none', color:'#111', boxSizing:'border-box', backgroundColor: frozen ? '#f5f5f5' : '#fff', opacity: frozen ? 0.6 : 1, cursor: frozen ? 'not-allowed' : 'text'}}
+                    onKeyDown={e => { if (e.key === 'Enter' && !frozen) handleFiger() }}
                   />
                   {titleFeedback === 'correct' && <p style={{fontSize:'12px', color:'#16a34a', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>✓ Titre trouvé !</p>}
                   {titleFeedback === 'close' && <p style={{fontSize:'12px', color:'#ea580c', fontWeight:'500', marginTop:'4px', marginLeft:'2px'}}>Pas loin !</p>}
                 </div>
+                {frozen && <p style={{fontSize:'13px', color:'#666', textAlign:'center', marginTop:'4px'}}>✓ Réponse validée — en attente du résultat</p>}
               </div>
             </>
           )}

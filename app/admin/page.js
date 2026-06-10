@@ -3,9 +3,12 @@ import { useState, useEffect } from 'react'
 import { createClient } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 
+const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
+
 export default function Admin() {
   const [playlists, setPlaylists] = useState([])
   const [rooms, setRooms] = useState([])
+  const [suggestions, setSuggestions] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [name, setName] = useState('')
   const [theme, setTheme] = useState('')
@@ -20,6 +23,41 @@ export default function Admin() {
   async function loadData() {
     await loadRooms()
     await loadPlaylists()
+    await loadSuggestions()
+  }
+
+  async function loadSuggestions() {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('suggestions')
+      .select('*')
+      .order('status', { ascending: true }) // 'done' < 'pending' ? on retrie côté client
+      .order('created_at', { ascending: false })
+    const rows = data || []
+    // Profils des proposeurs
+    const ids = [...new Set(rows.map(s => s.player_id))]
+    const map = {}
+    if (ids.length) {
+      const { data: profs } = await supabase.from('profiles').select('id, pseudo, avatar_id').in('id', ids)
+      for (const p of (profs || [])) map[p.id] = p
+    }
+    // 'pending' d'abord, puis par date desc
+    const withProfile = rows.map(s => ({ ...s, profile: map[s.player_id] || null }))
+    withProfile.sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'pending' ? -1 : 1
+      return new Date(b.created_at) - new Date(a.created_at)
+    })
+    setSuggestions(withProfile)
+  }
+
+  async function markSuggestion(id, status) {
+    const supabase = createClient()
+    await supabase.from('suggestions').update({ status }).eq('id', id)
+    setSuggestions(prev => prev.map(s => s.id === id ? { ...s, status } : s)
+      .sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'pending' ? -1 : 1
+        return new Date(b.created_at) - new Date(a.created_at)
+      }))
   }
 
   async function loadRooms() {
@@ -152,15 +190,21 @@ export default function Admin() {
 
         {/* Tabs */}
         <div className="admin-tabs" style={{display:'flex', gap:'4px', marginBottom:'32px', backgroundColor:'#f8f8f8', padding:'4px', borderRadius:'10px', width:'fit-content'}}>
-          {['rooms', 'playlists'].map(tab => (
+          {['rooms', 'playlists', 'suggestions'].map(tab => {
+            const pendingCount = suggestions.filter(s => s.status === 'pending').length
+            const label = tab === 'rooms' ? `Parties (${rooms.length})`
+              : tab === 'playlists' ? `Playlists (${playlists.length})`
+              : `Suggestions${pendingCount ? ` (${pendingCount})` : ''}`
+            return (
             <button key={tab} onClick={() => setActiveTab(tab)} className="admin-tab"
               style={{padding:'8px 20px', borderRadius:'8px', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:'500',
                 backgroundColor: activeTab === tab ? '#fff' : 'transparent',
                 color: activeTab === tab ? '#111' : '#999',
                 boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'}}>
-              {tab === 'rooms' ? `Parties (${rooms.length})` : `Playlists (${playlists.length})`}
+              {label}
             </button>
-          ))}
+            )
+          })}
         </div>
 
         {activeTab === 'rooms' && (
@@ -265,6 +309,52 @@ export default function Admin() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'suggestions' && (
+          <div>
+            <h1 style={{fontSize:'24px', fontWeight:'500', letterSpacing:'-0.5px', color:'#111', marginBottom:'24px'}}>Propositions des joueurs</h1>
+            {suggestions.length === 0 ? (
+              <div style={{padding:'48px', border:'1px solid #f0f0f0', borderRadius:'12px', textAlign:'center'}}>
+                <p style={{fontSize:'14px', color:'#999'}}>Aucune proposition pour le moment.</p>
+              </div>
+            ) : (
+              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                {suggestions.map(s => {
+                  const done = s.status === 'done'
+                  const date = s.created_at ? new Date(s.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : ''
+                  return (
+                    <div key={s.id} className="admin-card" style={{display:'flex', alignItems:'center', padding:'18px 24px', border:'1px solid #f0f0f0', borderRadius:'12px', gap:'16px', backgroundColor: done ? '#fafafa' : '#fff'}}>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px', flexWrap:'wrap'}}>
+                          <p style={{fontSize:'15px', fontWeight:'500', color:'#111'}}>{s.title} <span style={{color:'#999', fontWeight:'400'}}>— {s.artist}</span></p>
+                          <span style={{fontSize:'11px', padding:'2px 8px', borderRadius:'99px', backgroundColor: done ? '#dcfce7' : '#fef3c7', color: done ? '#16a34a' : '#b45309'}}>
+                            {done ? '✓ Traitée' : 'En attente'}
+                          </span>
+                        </div>
+                        <p style={{fontSize:'12px', color:'#999'}}>
+                          {AVATARS[s.profile?.avatar_id] || '🎵'} {s.profile?.pseudo || 'Joueur'} · {date}
+                        </p>
+                      </div>
+                      <div style={{display:'flex', gap:'6px', flexShrink:0}}>
+                        {done ? (
+                          <button onClick={() => markSuggestion(s.id, 'pending')}
+                            style={{padding:'8px 14px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'12px', cursor:'pointer', color:'#666'}}>
+                            Rouvrir
+                          </button>
+                        ) : (
+                          <button onClick={() => markSuggestion(s.id, 'done')}
+                            style={{padding:'8px 14px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'12px', cursor:'pointer'}}>
+                            Marquer comme traitée
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

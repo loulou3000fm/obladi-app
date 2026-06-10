@@ -5,6 +5,7 @@ import { getLevel } from '../../lib/game'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SongModal from '../../components/SongModal'
+import SuggestModal from '../../components/SuggestModal'
 
 const AVATARS = {
   avatar_1: '🎵', avatar_2: '🎸', avatar_3: '🎹',
@@ -22,6 +23,8 @@ export default function Dashboard() {
   const [friendsInGame, setFriendsInGame] = useState([])
   const [favorites, setFavorites] = useState([])
   const [selectedSong, setSelectedSong] = useState(null)
+  const [showSuggest, setShowSuggest] = useState(false)
+  const [suggestSent, setSuggestSent] = useState(false)
   const viewerIdRef = useRef(null)
   const router = useRouter()
 
@@ -414,7 +417,28 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* CTA proposer un morceau */}
+        <div style={{marginTop:'40px', textAlign:'center'}}>
+          <button onClick={() => setShowSuggest(true)}
+            style={{padding:'12px 22px', backgroundColor:'transparent', border:'1px solid #e0e0e0', borderRadius:'10px', fontSize:'14px', fontWeight:'500', color:'#111', cursor:'pointer'}}>
+            💡 Proposer un morceau
+          </button>
+        </div>
+
       </div>
+
+      {suggestSent && (
+        <div style={{position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%)', zIndex:1100, backgroundColor:'#111', color:'#fff', padding:'12px 20px', borderRadius:'10px', fontSize:'14px', fontWeight:'500', boxShadow:'0 4px 16px rgba(0,0,0,0.2)'}}>
+          ✓ Merci, ta proposition a été envoyée !
+        </div>
+      )}
+
+      <SuggestModal
+        open={showSuggest}
+        viewerId={viewerIdRef.current}
+        onClose={() => setShowSuggest(false)}
+        onSent={() => { setShowSuggest(false); setSuggestSent(true); setTimeout(() => setSuggestSent(false), 3000) }}
+      />
 
       <SongModal song={selectedSong} onClose={() => setSelectedSong(null)} />
     </main>

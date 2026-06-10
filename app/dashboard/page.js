@@ -4,6 +4,7 @@ import { createClient } from '../../lib/supabase'
 import { getLevel } from '../../lib/game'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import SongModal from '../../components/SongModal'
 
 const AVATARS = {
   avatar_1: '🎵', avatar_2: '🎸', avatar_3: '🎹',
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [pendingFriends, setPendingFriends] = useState(0)
   const [friendsInGame, setFriendsInGame] = useState([])
   const [favorites, setFavorites] = useState([])
+  const [selectedSong, setSelectedSong] = useState(null)
   const viewerIdRef = useRef(null)
   const router = useRouter()
 
@@ -52,7 +54,7 @@ export default function Dashboard() {
       const { data: favRows } = await supabase.from('favorites').select('song_id, created_at').eq('player_id', user.id).order('created_at', { ascending: false }).limit(10)
       if (favRows && favRows.length) {
         const ids = favRows.map(f => f.song_id)
-        const { data: favSongs } = await supabase.from('songs').select('id, title, artist, cover_url').in('id', ids)
+        const { data: favSongs } = await supabase.from('songs').select('id, title, artist, cover_url, deezer_id').in('id', ids)
         const map = {}
         for (const s of (favSongs || [])) map[s.id] = s
         setFavorites(ids.map(id => map[id]).filter(Boolean))
@@ -368,7 +370,7 @@ export default function Dashboard() {
           ) : (
             <div style={{display:'flex', gap:'12px', overflowX:'auto', paddingBottom:'4px'}}>
               {favorites.map(s => (
-                <div key={s.id} style={{width:'110px', flexShrink:0}}>
+                <div key={s.id} onClick={() => setSelectedSong(s)} style={{width:'110px', flexShrink:0, cursor:'pointer'}}>
                   {s.cover_url
                     ? <img src={s.cover_url} width={110} height={110} style={{width:'110px', height:'110px', borderRadius:'10px', objectFit:'cover'}} referrerPolicy="no-referrer" alt="" />
                     : <div style={{width:'110px', height:'110px', backgroundColor:'#f0f0f0', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px'}}>🎵</div>
@@ -410,6 +412,8 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      <SongModal song={selectedSong} onClose={() => setSelectedSong(null)} />
     </main>
   )
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
+import SongModal from '../../components/SongModal'
 
 export default function Favorites() {
   const router = useRouter()
@@ -9,6 +10,7 @@ export default function Favorites() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
+  const [selectedSong, setSelectedSong] = useState(null)
 
   useEffect(() => {
     async function init() {
@@ -31,7 +33,7 @@ export default function Favorites() {
       .order('created_at', { ascending: false })
     if (!favRows || favRows.length === 0) { setItems([]); return }
     const ids = favRows.map(f => f.song_id)
-    const { data: songs } = await supabase.from('songs').select('id, title, artist, cover_url').in('id', ids)
+    const { data: songs } = await supabase.from('songs').select('id, title, artist, cover_url, deezer_id').in('id', ids)
     const map = {}
     for (const s of (songs || [])) map[s.id] = s
     setItems(favRows.map(f => ({ song: map[f.song_id], song_id: f.song_id, created_at: f.created_at })).filter(x => x.song))
@@ -89,7 +91,7 @@ export default function Favorites() {
         ) : (
           <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
             {items.map(({ song, song_id, created_at }) => (
-              <div key={song_id} className="fav-row" style={{display:'flex', alignItems:'center', gap:'14px', padding:'12px 16px', border:'1px solid #f0f0f0', borderRadius:'12px'}}>
+              <div key={song_id} className="fav-row" onClick={() => setSelectedSong({ ...song, created_at })} style={{display:'flex', alignItems:'center', gap:'14px', padding:'12px 16px', border:'1px solid #f0f0f0', borderRadius:'12px', cursor:'pointer'}}>
                 {song.cover_url
                   ? <img src={song.cover_url} width={48} height={48} style={{width:'48px', height:'48px', borderRadius:'8px', objectFit:'cover', flexShrink:0}} referrerPolicy="no-referrer" alt="" />
                   : <div style={{width:'48px', height:'48px', backgroundColor:'#f0f0f0', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', flexShrink:0}}>🎵</div>
@@ -100,7 +102,7 @@ export default function Favorites() {
                 </div>
                 <span className="fav-date" style={{fontSize:'12px', color:'#999', flexShrink:0}}>{formatDate(created_at)}</span>
                 <button
-                  onClick={() => removeFavorite(song_id)}
+                  onClick={e => { e.stopPropagation(); removeFavorite(song_id) }}
                   disabled={busy === song_id}
                   aria-label="Retirer des favoris"
                   style={{background:'none', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'22px', lineHeight:1, flexShrink:0, padding:'4px', opacity: busy === song_id ? 0.5 : 1}}
@@ -112,6 +114,8 @@ export default function Favorites() {
           </div>
         )}
       </div>
+
+      <SongModal song={selectedSong} onClose={() => setSelectedSong(null)} />
     </main>
   )
 }

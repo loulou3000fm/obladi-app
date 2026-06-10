@@ -25,6 +25,9 @@ export default function Play() {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const [playerId, setPlayerId] = useState(null)
+  const [favoritedSongIds, setFavoritedSongIds] = useState(new Set())
+  const [favBusy, setFavBusy] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -56,6 +59,9 @@ export default function Play() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       userRef.current = user
+      setPlayerId(user.id)
+      const { data: favs } = await supabase.from('favorites').select('song_id').eq('player_id', user.id)
+      if (favs) setFavoritedSongIds(new Set(favs.map(f => f.song_id)))
 
       const { data: roomData } = await supabase.from('rooms').select('*, playlists(id, name)').eq('code', code.toUpperCase()).single()
       if (!roomData) return
@@ -339,6 +345,36 @@ export default function Play() {
     })()
   }, [gamePhase])
 
+  async function toggleFavorite() {
+    if (!playerId || favBusy) return
+    const song = songsRef.current[currentIndexRef.current]
+    if (!song) return
+    const isFav = favoritedSongIds.has(song.id)
+    setFavBusy(true)
+    // Optimistic UI
+    setFavoritedSongIds(prev => {
+      const n = new Set(prev)
+      if (isFav) n.delete(song.id); else n.add(song.id)
+      return n
+    })
+    const supabase = createClient()
+    let error
+    if (isFav) {
+      ;({ error } = await supabase.from('favorites').delete().eq('player_id', playerId).eq('song_id', song.id))
+    } else {
+      ;({ error } = await supabase.from('favorites').insert({ player_id: playerId, song_id: song.id }))
+    }
+    // 23505 = doublon unique → on considère que c'est déjà en favori (succès)
+    if (error && error.code !== '23505') {
+      setFavoritedSongIds(prev => {
+        const n = new Set(prev)
+        if (isFav) n.add(song.id); else n.delete(song.id)
+        return n
+      })
+    }
+    setFavBusy(false)
+  }
+
   if (!room || songsRef.current.length === 0) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui'}}>
       <p style={{color:'#999', fontSize:'14px'}}>Chargement...</p>
@@ -487,6 +523,20 @@ export default function Play() {
                 }
                 <p className="play-reveal-title" style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
                 <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
+                {playerId && currentSong && (() => {
+                  const isFav = favoritedSongIds.has(currentSong.id)
+                  return (
+                    <button
+                      onClick={toggleFavorite}
+                      disabled={favBusy}
+                      aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      style={{marginTop:'14px', display:'inline-flex', alignItems:'center', gap:'6px', padding:'8px 16px', borderRadius:'99px', border:`1px solid ${isFav ? '#ef4444' : '#e0e0e0'}`, backgroundColor: isFav ? '#fef2f2' : '#fff', color: isFav ? '#ef4444' : '#666', fontSize:'14px', fontWeight:'500', cursor: favBusy ? 'default' : 'pointer', opacity: favBusy ? 0.6 : 1}}
+                    >
+                      <span style={{fontSize:'16px'}}>{isFav ? '❤️' : '🤍'}</span>
+                      {isFav ? 'Favori' : 'Ajouter aux favoris'}
+                    </button>
+                  )
+                })()}
               </div>
 
               {/* Tableau récapitulatif */}

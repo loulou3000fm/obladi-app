@@ -54,7 +54,6 @@ export async function GET(request) {
           searchData = await searchRes.json()
         }
         const a = searchData?.artists?.[0] // le mieux scoré
-        result._debug = { mbStatus: searchRes.status, artistsCount: searchData?.artists?.length || 0, firstName: a?.name || null }
         if (a) {
           // Origine : begin-area puis area, sans doublon ni null, mappées en FR
           const beginArea = frCountry(a['begin-area']?.name)
@@ -87,9 +86,7 @@ export async function GET(request) {
             } catch {}
           }
         }
-      } catch (e) {
-        result._debug = { mbError: String(e) }
-      }
+      } catch {}
     }
 
     return NextResponse.json(result, { headers: { 'Cache-Control': 'public, max-age=86400' } })

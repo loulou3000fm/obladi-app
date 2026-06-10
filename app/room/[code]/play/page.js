@@ -30,6 +30,7 @@ export default function Play() {
   const [favBusy, setFavBusy] = useState(false)
   const [trackInfo, setTrackInfo] = useState(null)
   const [trackInfoLoading, setTrackInfoLoading] = useState(false)
+  const [playlistDescription, setPlaylistDescription] = useState('')
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -67,10 +68,11 @@ export default function Play() {
       const { data: favs } = await supabase.from('favorites').select('song_id').eq('player_id', user.id)
       if (favs) setFavoritedSongIds(new Set(favs.map(f => f.song_id)))
 
-      const { data: roomData } = await supabase.from('rooms').select('*, playlists(id, name)').eq('code', code.toUpperCase()).single()
+      const { data: roomData } = await supabase.from('rooms').select('*, playlists(id, name, description)').eq('code', code.toUpperCase()).single()
       if (!roomData) return
       setRoom(roomData)
       roomRef.current = roomData
+      setPlaylistDescription(roomData.playlists?.description || '')
 
       const startIndex = roomData.current_song_index || 0
       setCurrentIndex(startIndex)
@@ -503,6 +505,9 @@ export default function Play() {
               <h1 className="play-intro-title" style={{fontSize:'40px', fontWeight:'500', letterSpacing:'-1px', color:'#111', textAlign:'center', marginBottom:'16px', lineHeight:'1.1'}}>
                 Vous êtes prêts ?<br />Ça va commencer !
               </h1>
+              {playlistDescription && (
+                <p style={{fontSize:'16px', color:'#555', textAlign:'center', maxWidth:'480px', lineHeight:'1.6', margin:'0 auto', padding:'0 8px', boxSizing:'border-box'}}>{playlistDescription}</p>
+              )}
               <div className="play-intro-count" style={{fontSize:'64px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginTop:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
                 {countdown}<span style={{fontSize:'20px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>

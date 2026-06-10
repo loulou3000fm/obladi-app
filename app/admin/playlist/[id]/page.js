@@ -24,6 +24,8 @@ export default function PlaylistAdmin() {
   const [youtubeInput, setYoutubeInput] = useState('')
   const [dragIndex, setDragIndex] = useState(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
+  const [descInput, setDescInput] = useState('')
+  const [descSaved, setDescSaved] = useState(false)
   const playerRef = useRef(null)
 
   useEffect(() => { loadData() }, [id])
@@ -33,7 +35,16 @@ export default function PlaylistAdmin() {
     const { data: pl } = await supabase.from('playlists').select('*').eq('id', id).single()
     const { data: sg } = await supabase.from('songs').select('*').eq('playlist_id', id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
     setPlaylist(pl)
+    setDescInput(pl?.description || '')
     setSongs(sg || [])
+  }
+
+  async function saveDescription() {
+    const supabase = createClient()
+    await supabase.from('playlists').update({ description: descInput }).eq('id', id)
+    setPlaylist(prev => ({ ...prev, description: descInput }))
+    setDescSaved(true)
+    setTimeout(() => setDescSaved(false), 2000)
   }
 
   function handleSearchInput(e) {
@@ -239,6 +250,29 @@ export default function PlaylistAdmin() {
       </nav>
 
       <div className="pl-container" style={{maxWidth:'900px', margin:'0 auto', padding:'48px'}}>
+
+        {/* Description de la playlist */}
+        <div style={{marginBottom:'32px'}}>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px'}}>
+            <label style={{fontSize:'14px', fontWeight:'500', color:'#111'}}>Description de la playlist</label>
+            {descSaved && <span style={{fontSize:'12px', color:'#16a34a', fontWeight:'500'}}>✓ Enregistré</span>}
+          </div>
+          <textarea
+            value={descInput}
+            onChange={e => setDescInput(e.target.value)}
+            onBlur={saveDescription}
+            maxLength={300}
+            rows={3}
+            placeholder="Une courte description affichée aux joueurs avant la partie…"
+            style={{width:'100%', padding:'12px 14px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'14px', outline:'none', color:'#111', boxSizing:'border-box', resize:'vertical', fontFamily:'inherit', lineHeight:'1.5'}}
+          />
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:'8px'}}>
+            <span style={{fontSize:'12px', color:'#999'}}>{descInput.length}/300</span>
+            <button onClick={saveDescription} style={{padding:'8px 16px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'13px', fontWeight:'500', cursor:'pointer'}}>
+              Enregistrer
+            </button>
+          </div>
+        </div>
 
         {/* Import Spotify */}
         <div style={{padding:'24px', backgroundColor:'#f8f8f8', borderRadius:'12px', marginBottom:'32px'}}>

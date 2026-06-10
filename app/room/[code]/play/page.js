@@ -52,6 +52,7 @@ export default function Play() {
   const channelRef = useRef(null)
   const realtimeRef = useRef(null)
   const playersIntervalRef = useRef(null)
+  const tickIntervalRef = useRef(null)
   const visibilityHandlerRef = useRef(null)
 
   useEffect(() => {
@@ -139,6 +140,24 @@ export default function Play() {
         }
       }
 
+      // Filet : les joueurs appellent aussi game-tick (idempotent, basé sur l'heure serveur).
+      // Évite que les phases se figent quand l'onglet du host est gelé en arrière-plan.
+      function tickOnce() {
+        if (stopped || !roomRef.current) return
+        if (!['intro', 'playing', 'reveal'].includes(gamePhaseRef.current)) return
+        fetch('/api/game-tick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_code: code })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (stopped || !data || data.error) return
+            if (data.phase || data.status === 'finished' || data.status === 'interrupted') applyRoomState(data)
+          })
+          .catch(() => {})
+      }
+
       // Si on arrive directement en plein reveal, on charge les compteurs tout de suite
       if (gamePhaseRef.current === 'reveal') refreshRevealCounts()
 
@@ -162,6 +181,9 @@ export default function Play() {
         if (gamePhaseRef.current === 'reveal') refreshRevealCounts()
       }, 3000)
 
+      // Filet d'avancement des phases : game-tick côté joueur toutes les 2s
+      tickIntervalRef.current = setInterval(tickOnce, 2000)
+
       // Resync one-shot au retour de visibilité : le websocket a pu manquer un event en arrière-plan
       async function handleVisibility() {
         if (document.visibilityState !== 'visible' || stopped || !roomRef.current) return
@@ -173,6 +195,8 @@ export default function Play() {
           applyRoomState(await res.json())
           refreshPlayers()
         } catch {}
+        // Relance immédiatement l'avancement des phases au retour sur l'onglet
+        tickOnce()
       }
       visibilityHandlerRef.current = handleVisibility
       document.addEventListener('visibilitychange', handleVisibility)
@@ -182,6 +206,7 @@ export default function Play() {
     return () => {
       stopped = true
       clearInterval(playersIntervalRef.current)
+      clearInterval(tickIntervalRef.current)
       if (realtimeRef.current && channelRef.current) realtimeRef.current.removeChannel(channelRef.current)
       if (visibilityHandlerRef.current) document.removeEventListener('visibilitychange', visibilityHandlerRef.current)
     }

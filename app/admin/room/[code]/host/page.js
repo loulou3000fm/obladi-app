@@ -120,6 +120,12 @@ export default function HostRoom() {
     function handleVisibility() {
       if (document.visibilityState !== 'visible') return
       if (tickFnRef.current) tickFnRef.current()
+      // Resync de l'avancement au retour sur l'onglet (même si tickFnRef pas encore prêt)
+      fetch('/api/game-tick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_code: code })
+      }).catch(() => {})
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)

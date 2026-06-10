@@ -42,7 +42,7 @@ export default function Dashboard() {
         .eq('player_id', user.id)
         .eq('completed', true)
         .order('played_at', { ascending: false })
-        .limit(10)
+        .limit(5)
       setSessions(hist || [])
 
       const { data: rooms } = await supabase.from('rooms').select('*, playlists(name)').in('status', ['waiting', 'playing']).order('created_at', { ascending: false })
@@ -385,7 +385,10 @@ export default function Dashboard() {
 
         {/* Historique */}
         <div>
-          <h2 style={{fontSize:'18px', fontWeight:'500', color:'#111', marginBottom:'16px', letterSpacing:'-0.3px'}}>Mes parties</h2>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px'}}>
+            <h2 style={{fontSize:'18px', fontWeight:'500', color:'#111', letterSpacing:'-0.3px'}}>Mes parties</h2>
+            {sessions.length > 0 && <a href="/history" style={{fontSize:'13px', color:'#3b82f6', textDecoration:'none', fontWeight:'500'}}>Voir tout →</a>}
+          </div>
           <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
             {sessions.length === 0 ? (
               <div style={{padding:'24px', border:'1px solid #f0f0f0', borderRadius:'12px', textAlign:'center'}}>

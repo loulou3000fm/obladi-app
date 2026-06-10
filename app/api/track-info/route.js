@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const MB_HEADERS = { 'User-Agent': 'Obladi/1.0 ( https://obladi.live )' }
+const MB_HEADERS = { 'User-Agent': 'Obladi/1.0 ( https://obladi.live )', 'Accept': 'application/json' }
 const COUNTRY_FR = {
   'United States': 'États-Unis',
   'United Kingdom': 'Royaume-Uni',
@@ -47,7 +47,13 @@ export async function GET(request) {
           `https://musicbrainz.org/ws/2/artist/?query=artist:"${encodeURIComponent(artist)}"&fmt=json&limit=1`,
           { headers: MB_HEADERS }
         )
+        result._debug = { mbStatus: searchRes.status, mbOk: searchRes.ok }
+        if (!searchRes.ok) {
+          result._debug.mbBody = (await searchRes.text()).slice(0, 300)
+        } else {
         const searchData = await searchRes.json()
+        result._debug.artistsCount = searchData?.artists?.length || 0
+        result._debug.firstName = searchData?.artists?.[0]?.name || null
         const a = searchData?.artists?.[0]
         if (a) {
           // Origine : begin-area puis area, sans doublon ni null, mappées en FR
@@ -81,7 +87,10 @@ export async function GET(request) {
             } catch {}
           }
         }
-      } catch {}
+        }
+      } catch (e) {
+        result._debug = { mbError: String(e) }
+      }
     }
 
     return NextResponse.json(result, { headers: { 'Cache-Control': 'public, max-age=86400' } })

@@ -29,16 +29,18 @@ export default function Recap() {
         .eq('code', code.toUpperCase())
         .maybeSingle()
 
-      if (!roomData) { setError('Partie introuvable'); setLoading(false); return }
+      if (!roomData) { setError("Cette partie n'est plus disponible"); setLoading(false); return }
       setRoom(roomData)
 
-      const { data: songsData } = await supabase
-        .from('songs')
-        .select('*')
-        .eq('playlist_id', roomData.playlists.id)
-        .order('position', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: true })
-      setSongs(songsData || [])
+      if (roomData.playlists?.id) {
+        const { data: songsData } = await supabase
+          .from('songs')
+          .select('*')
+          .eq('playlist_id', roomData.playlists.id)
+          .order('position', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: true })
+        setSongs(songsData || [])
+      }
 
       const { data: answersData } = await supabase
         .from('answers')

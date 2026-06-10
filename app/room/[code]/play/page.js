@@ -571,16 +571,19 @@ export default function Play() {
                 <p className="play-reveal-title" style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
                 <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
                 {trackInfo && (() => {
-                  const year = trackInfo.releaseDate ? String(trackInfo.releaseDate).slice(0, 4) : null
+                  const yr = trackInfo.releaseDate ? String(trackInfo.releaseDate).slice(0, 4) : null
                   const metaParts = []
-                  if (year && /^\d{4}$/.test(year)) metaParts.push(`Sorti en ${year}`)
+                  if (yr && /^\d{4}$/.test(yr)) metaParts.push(`Sorti en ${yr}`)
                   if (trackInfo.label) metaParts.push(trackInfo.label)
                   const meta = metaParts.join(' · ')
-                  if (!meta && !trackInfo.bio) return null
+                  const hasMembers = trackInfo.members && trackInfo.members.length > 0
+                  if (!meta && !trackInfo.origin && !trackInfo.yearsActive && !hasMembers) return null
                   return (
-                    <div style={{margin:'12px auto 0', maxWidth:'420px'}}>
-                      {meta && <p style={{fontSize:'13px', color:'#888', marginBottom: trackInfo.bio ? '8px' : 0}}>{meta}</p>}
-                      {trackInfo.bio && <p style={{fontSize:'13px', color:'#555', lineHeight:'1.6'}}>{trackInfo.bio}</p>}
+                    <div style={{margin:'12px auto 0', maxWidth:'420px', display:'flex', flexDirection:'column', gap:'4px'}}>
+                      {meta && <p style={{fontSize:'13px', color:'#888', margin:0}}>{meta}</p>}
+                      {trackInfo.origin && <p style={{fontSize:'13px', color:'#555', margin:0}}>Origine : {trackInfo.origin}</p>}
+                      {trackInfo.yearsActive && <p style={{fontSize:'13px', color:'#555', margin:0}}>Actif : {trackInfo.yearsActive}</p>}
+                      {hasMembers && <p style={{fontSize:'13px', color:'#555', margin:0}}>Membres : {trackInfo.members.join(', ')}</p>}
                     </div>
                   )
                 })()}

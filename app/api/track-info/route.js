@@ -2,8 +2,19 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+const MB_HEADERS = { 'User-Agent': 'Obladi/1.0 ( https://obladi.live )' }
+const COUNTRY_FR = {
+  'United States': 'États-Unis',
+  'United Kingdom': 'Royaume-Uni',
+  'Germany': 'Allemagne',
+  'Australia': 'Australie',
+  'Sweden': 'Suède',
+}
+const frCountry = name => (name ? (COUNTRY_FR[name] || name) : null)
+const year = d => (d ? String(d).slice(0, 4) : null)
+
 export async function GET(request) {
-  const result = { releaseDate: null, label: null, bio: null }
+  const result = { releaseDate: null, label: null, origin: null, yearsActive: null, members: [] }
   try {
     const { searchParams } = new URL(request.url)
     const deezerId = searchParams.get('deezer_id')
@@ -29,24 +40,46 @@ export async function GET(request) {
       } catch {}
     }
 
-    // LAST.FM : bio d'artiste
-    if (artist && process.env.LASTFM_API_KEY) {
+    // MUSICBRAINZ : origine, période d'activité, membres
+    if (artist) {
       try {
-        const res = await fetch(
-          `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(artist)}&lang=fr&api_key=${process.env.LASTFM_API_KEY}&format=json`
+        const searchRes = await fetch(
+          `https://musicbrainz.org/ws/2/artist/?query=artist:"${encodeURIComponent(artist)}"&fmt=json&limit=1`,
+          { headers: MB_HEADERS }
         )
-        const data = await res.json()
-        let summary = data?.artist?.bio?.summary || ''
-        if (summary) {
-          summary = summary.replace(/<[^>]+>/g, '')          // retire le HTML
-          summary = summary.split(/Read more|Lire la suite/i)[0] // coupe le lien Last.fm
-          summary = summary.trim()
-          if (summary.length > 280) {
-            const cut = summary.slice(0, 280)
-            const lastSpace = cut.lastIndexOf(' ')
-            summary = (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim() + '…'
+        const searchData = await searchRes.json()
+        const a = searchData?.artists?.[0]
+        if (a) {
+          // Origine : begin-area puis area, sans doublon ni null, mappées en FR
+          const beginArea = frCountry(a['begin-area']?.name)
+          const area = frCountry(a.area?.name)
+          const origin = [...new Set([beginArea, area].filter(Boolean))].join(', ')
+          if (origin) result.origin = origin
+
+          // Période d'activité
+          const ls = a['life-span'] || {}
+          const begin = year(ls.begin)
+          const end = year(ls.end)
+          if (ls.ended && end) result.yearsActive = `${begin || '?'}–${end}`
+          else if (begin) result.yearsActive = `depuis ${begin}`
+
+          // Membres (uniquement pour un groupe)
+          if (a.type === 'Group' && a.id) {
+            try {
+              const relRes = await fetch(
+                `https://musicbrainz.org/ws/2/artist/${a.id}?inc=artist-rels&fmt=json`,
+                { headers: MB_HEADERS }
+              )
+              const relData = await relRes.json()
+              const names = []
+              for (const rel of (relData?.relations || [])) {
+                if (rel.type === 'member of band' && rel.artist?.name && !names.includes(rel.artist.name)) {
+                  names.push(rel.artist.name)
+                }
+              }
+              result.members = names.slice(0, 6)
+            } catch {}
           }
-          if (summary) result.bio = summary
         }
       } catch {}
     }

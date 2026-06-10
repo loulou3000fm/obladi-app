@@ -14,6 +14,7 @@ export default function Recap() {
   const [songs, setSongs] = useState([])
   const [answers, setAnswers] = useState([])
   const [players, setPlayers] = useState([])
+  const [playedSongIds, setPlayedSongIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -48,6 +49,13 @@ export default function Recap() {
         .eq('room_id', roomData.id)
         .eq('player_id', user.id)
       setAnswers(answersData || [])
+
+      // Morceaux réellement joués : tous les song_id ayant au moins une réponse dans cette room (tous joueurs)
+      const { data: playedRows } = await supabase
+        .from('answers')
+        .select('song_id')
+        .eq('room_id', roomData.id)
+      setPlayedSongIds(new Set((playedRows || []).map(r => r.song_id)))
 
       const { data: playersData } = await supabase
         .from('room_players')
@@ -85,6 +93,10 @@ export default function Recap() {
 
   const answerBySong = {}
   for (const a of answers) answerBySong[a.song_id] = a
+
+  // Borne le recap aux morceaux réellement joués (évite la fuite des morceaux non joués si clôture anticipée)
+  const currentIndex = room?.current_song_index ?? 0
+  const playedSongs = songs.filter((s, i) => i < currentIndex || (i === currentIndex && playedSongIds.has(s.id)))
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
@@ -148,11 +160,16 @@ export default function Recap() {
 
         {/* Morceaux joués */}
         <h2 style={{fontSize:'18px', fontWeight:'500', color:'#111', marginBottom:'16px', letterSpacing:'-0.3px'}}>Morceaux joués</h2>
+        {playedSongs.length === 0 ? (
+          <div style={{padding:'24px', border:'1px solid #f0f0f0', borderRadius:'12px', textAlign:'center'}}>
+            <p style={{fontSize:'14px', color:'#999'}}>Aucun morceau joué pour cette partie.</p>
+          </div>
+        ) : (
         <div style={{border:'1px solid #f0f0f0', borderRadius:'12px', overflow:'hidden'}}>
-          {songs.map((s, i) => {
+          {playedSongs.map((s, i) => {
             const ans = answerBySong[s.id]
             return (
-              <div key={s.id} className="recap-row" style={{display:'flex', alignItems:'center', gap:'12px', padding:'14px 20px', borderBottom: i < songs.length - 1 ? '1px solid #f8f8f8' : 'none'}}>
+              <div key={s.id} className="recap-row" style={{display:'flex', alignItems:'center', gap:'12px', padding:'14px 20px', borderBottom: i < playedSongs.length - 1 ? '1px solid #f8f8f8' : 'none'}}>
                 {s.cover_url
                   ? <img src={s.cover_url} width={44} height={44} style={{borderRadius:'6px', flexShrink:0}} referrerPolicy="no-referrer" alt="" />
                   : <div style={{width:'44px', height:'44px', backgroundColor:'#f0f0f0', borderRadius:'6px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px'}}>🎵</div>
@@ -176,6 +193,7 @@ export default function Recap() {
             )
           })}
         </div>
+        )}
 
       </div>
     </main>

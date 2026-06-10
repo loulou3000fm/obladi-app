@@ -28,6 +28,8 @@ export default function Play() {
   const [playerId, setPlayerId] = useState(null)
   const [favoritedSongIds, setFavoritedSongIds] = useState(new Set())
   const [favBusy, setFavBusy] = useState(false)
+  const [trackInfo, setTrackInfo] = useState(null)
+  const [trackInfoLoading, setTrackInfoLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [myScore, setMyScore] = useState(0)
   const [pastResults, setPastResults] = useState([])
@@ -346,6 +348,23 @@ export default function Play() {
     })()
   }, [gamePhase])
 
+  // Infos morceau (date/label Deezer + bio Last.fm) chargées à l'entrée en reveal
+  useEffect(() => {
+    if (gamePhase !== 'reveal') { setTrackInfo(null); return }
+    const idx = currentIndexRef.current
+    const song = songsRef.current[idx]
+    setTrackInfo(null)
+    if (!song || (!song.deezer_id && !song.artist)) return
+    let cancelled = false
+    setTrackInfoLoading(true)
+    fetch(`/api/track-info?deezer_id=${song.deezer_id || ''}&artist=${encodeURIComponent(song.artist || '')}`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled && currentIndexRef.current === idx) setTrackInfo(data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setTrackInfoLoading(false) })
+    return () => { cancelled = true }
+  }, [gamePhase, currentIndex])
+
   async function toggleFavorite() {
     if (!playerId || favBusy) return
     const song = songsRef.current[currentIndexRef.current]
@@ -526,6 +545,20 @@ export default function Play() {
                 }
                 <p className="play-reveal-title" style={{fontSize:'22px', fontWeight:'500', color:'#111', marginBottom:'4px'}}>{currentSong?.title}</p>
                 <p style={{fontSize:'15px', color:'#666'}}>{currentSong?.artist}</p>
+                {trackInfo && (() => {
+                  const year = trackInfo.releaseDate ? String(trackInfo.releaseDate).slice(0, 4) : null
+                  const metaParts = []
+                  if (year && /^\d{4}$/.test(year)) metaParts.push(`Sorti en ${year}`)
+                  if (trackInfo.label) metaParts.push(trackInfo.label)
+                  const meta = metaParts.join(' · ')
+                  if (!meta && !trackInfo.bio) return null
+                  return (
+                    <div style={{margin:'12px auto 0', maxWidth:'420px'}}>
+                      {meta && <p style={{fontSize:'13px', color:'#888', marginBottom: trackInfo.bio ? '8px' : 0}}>{meta}</p>}
+                      {trackInfo.bio && <p style={{fontSize:'13px', color:'#555', lineHeight:'1.6'}}>{trackInfo.bio}</p>}
+                    </div>
+                  )
+                })()}
                 {playerId && currentSong && (() => {
                   const isFav = favoritedSongIds.has(currentSong.id)
                   return (

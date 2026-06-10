@@ -533,9 +533,9 @@ export default function Play() {
                       onClick={toggleFavorite}
                       disabled={favBusy}
                       aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                      style={{marginTop:'14px', display:'inline-flex', alignItems:'center', gap:'6px', padding:'8px 16px', borderRadius:'99px', border:`1px solid ${isFav ? '#ef4444' : '#e0e0e0'}`, backgroundColor: isFav ? '#fef2f2' : '#fff', color: isFav ? '#ef4444' : '#666', fontSize:'14px', fontWeight:'500', cursor: favBusy ? 'default' : 'pointer', opacity: favBusy ? 0.6 : 1}}
+                      style={{marginTop:'14px', display:'inline-flex', alignItems:'center', gap:'7px', padding:'10px 18px', borderRadius:'99px', border:'1.5px solid #ef4444', backgroundColor: isFav ? '#ef4444' : '#fff', color: isFav ? '#fff' : '#ef4444', fontSize:'14px', fontWeight:'500', cursor: favBusy ? 'default' : 'pointer', opacity: favBusy ? 0.6 : 1}}
                     >
-                      <span style={{fontSize:'16px'}}>{isFav ? '❤️' : '🤍'}</span>
+                      <span style={{fontSize:'18px', lineHeight:1}}>{isFav ? '♥' : '♡'}</span>
                       {isFav ? 'Favori' : 'Ajouter aux favoris'}
                     </button>
                   )

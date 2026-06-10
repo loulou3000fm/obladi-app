@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [pendingFriends, setPendingFriends] = useState(0)
   const [friendsInGame, setFriendsInGame] = useState([])
+  const [favorites, setFavorites] = useState([])
   const viewerIdRef = useRef(null)
   const router = useRouter()
 
@@ -47,6 +48,17 @@ export default function Dashboard() {
 
       const { count: pending } = await supabase.from('friendships').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('addressee_id', user.id)
       setPendingFriends(pending || 0)
+
+      const { data: favRows } = await supabase.from('favorites').select('song_id, created_at').eq('player_id', user.id).order('created_at', { ascending: false }).limit(10)
+      if (favRows && favRows.length) {
+        const ids = favRows.map(f => f.song_id)
+        const { data: favSongs } = await supabase.from('songs').select('id, title, artist, cover_url').in('id', ids)
+        const map = {}
+        for (const s of (favSongs || [])) map[s.id] = s
+        setFavorites(ids.map(id => map[id]).filter(Boolean))
+      } else {
+        setFavorites([])
+      }
 
       await loadFriendsInGame(user.id)
 
@@ -337,6 +349,32 @@ export default function Dashboard() {
                   >
                     {room.status === 'playing' ? 'Rejoindre →' : 'Entrer →'}
                   </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tes favoris */}
+        <div style={{marginBottom:'40px'}}>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px'}}>
+            <h2 style={{fontSize:'18px', fontWeight:'500', color:'#111', letterSpacing:'-0.3px'}}>❤️ Tes favoris</h2>
+            {favorites.length > 0 && <a href="/favorites" style={{fontSize:'13px', color:'#3b82f6', textDecoration:'none', fontWeight:'500'}}>Voir tout →</a>}
+          </div>
+          {favorites.length === 0 ? (
+            <div style={{padding:'24px', border:'1px solid #f0f0f0', borderRadius:'12px', textAlign:'center'}}>
+              <p style={{fontSize:'14px', color:'#999'}}>Mets des morceaux en favori pendant une partie pour les retrouver ici.</p>
+            </div>
+          ) : (
+            <div style={{display:'flex', gap:'12px', overflowX:'auto', paddingBottom:'4px'}}>
+              {favorites.map(s => (
+                <div key={s.id} style={{width:'110px', flexShrink:0}}>
+                  {s.cover_url
+                    ? <img src={s.cover_url} width={110} height={110} style={{width:'110px', height:'110px', borderRadius:'10px', objectFit:'cover'}} referrerPolicy="no-referrer" alt="" />
+                    : <div style={{width:'110px', height:'110px', backgroundColor:'#f0f0f0', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px'}}>🎵</div>
+                  }
+                  <p style={{fontSize:'13px', fontWeight:'500', color:'#111', margin:'8px 0 0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.title}</p>
+                  <p style={{fontSize:'12px', color:'#999', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.artist}</p>
                 </div>
               ))}
             </div>

@@ -46,6 +46,10 @@ export default function Admin() {
   }
 
   async function deletePlaylist(id) {
+    const pl = playlists.find(p => p.id === id)
+    const name = pl?.name || 'cette playlist'
+    const count = pl?.songs_count || 0
+    if (!confirm(`Supprimer la playlist « ${name} »${count ? ` et ses ${count} chanson${count > 1 ? 's' : ''}` : ''} ? Cette action est irréversible.`)) return
     const supabase = createClient()
     await supabase.from('playlists').delete().eq('id', id)
     setPlaylists(prev => prev.filter(p => p.id !== id))

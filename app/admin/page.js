@@ -51,7 +51,30 @@ export default function Admin() {
     const count = pl?.songs_count || 0
     if (!confirm(`Supprimer la playlist « ${name} »${count ? ` et ses ${count} chanson${count > 1 ? 's' : ''}` : ''} ? Cette action est irréversible.`)) return
     const supabase = createClient()
-    await supabase.from('playlists').delete().eq('id', id)
+    const fail = msg => { alert('Échec de la suppression : ' + msg); }
+
+    // 1. Rooms liées (FK rooms.playlist_id) + leurs dépendances (answers, room_players)
+    const { data: rooms, error: roomsSelErr } = await supabase.from('rooms').select('id').eq('playlist_id', id)
+    if (roomsSelErr) return fail(roomsSelErr.message)
+    const roomIds = (rooms || []).map(r => r.id)
+    if (roomIds.length) {
+      const { error: ansErr } = await supabase.from('answers').delete().in('room_id', roomIds)
+      if (ansErr) return fail(ansErr.message)
+      const { error: rpErr } = await supabase.from('room_players').delete().in('room_id', roomIds)
+      if (rpErr) return fail(rpErr.message)
+      const { error: roomsErr } = await supabase.from('rooms').delete().eq('playlist_id', id)
+      if (roomsErr) return fail(roomsErr.message)
+    }
+
+    // 2. Chansons de la playlist
+    const { error: songsErr } = await supabase.from('songs').delete().eq('playlist_id', id)
+    if (songsErr) return fail(songsErr.message)
+
+    // 3. La playlist elle-même
+    const { error: plErr } = await supabase.from('playlists').delete().eq('id', id)
+    if (plErr) return fail(plErr.message)
+
+    // Succès complet uniquement
     setPlaylists(prev => prev.filter(p => p.id !== id))
   }
 

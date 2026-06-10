@@ -43,18 +43,18 @@ export async function GET(request) {
     // MUSICBRAINZ : origine, période d'activité, membres
     if (artist) {
       try {
-        const searchRes = await fetch(
-          `https://musicbrainz.org/ws/2/artist/?query=artist:"${encodeURIComponent(artist)}"&fmt=json&limit=1`,
-          { headers: MB_HEADERS }
-        )
-        result._debug = { mbStatus: searchRes.status, mbOk: searchRes.ok }
-        if (!searchRes.ok) {
-          result._debug.mbBody = (await searchRes.text()).slice(0, 300)
-        } else {
-        const searchData = await searchRes.json()
-        result._debug.artistsCount = searchData?.artists?.length || 0
-        result._debug.firstName = searchData?.artists?.[0]?.name || null
-        const a = searchData?.artists?.[0]
+        // Essai 1 : recherche par nom simple (le plus fiable), entièrement encodée
+        const q1 = encodeURIComponent(artist)
+        let searchRes = await fetch(`https://musicbrainz.org/ws/2/artist/?query=${q1}&fmt=json&limit=5`, { headers: MB_HEADERS })
+        let searchData = await searchRes.json()
+        // Essai 2 : requête par champ correctement encodée
+        if (!searchData?.artists?.length) {
+          const q2 = encodeURIComponent(`artist:${artist}`)
+          searchRes = await fetch(`https://musicbrainz.org/ws/2/artist/?query=${q2}&fmt=json&limit=5`, { headers: MB_HEADERS })
+          searchData = await searchRes.json()
+        }
+        const a = searchData?.artists?.[0] // le mieux scoré
+        result._debug = { mbStatus: searchRes.status, artistsCount: searchData?.artists?.length || 0, firstName: a?.name || null }
         if (a) {
           // Origine : begin-area puis area, sans doublon ni null, mappées en FR
           const beginArea = frCountry(a['begin-area']?.name)
@@ -86,7 +86,6 @@ export async function GET(request) {
               result.members = names.slice(0, 6)
             } catch {}
           }
-        }
         }
       } catch (e) {
         result._debug = { mbError: String(e) }

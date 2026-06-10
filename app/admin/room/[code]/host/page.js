@@ -45,7 +45,17 @@ export default function HostRoom() {
         phaseStartedAtRef.current = roomData.phase_started_at
       }
 
-      const { data: songsData } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
+      // Règle transversale : sélection figée (song_ids) DANS L'ORDRE, sinon toute la playlist.
+      let songsData
+      if (roomData.song_ids && roomData.song_ids.length) {
+        const { data } = await supabase.from('songs').select('*').in('id', roomData.song_ids)
+        const byId = {}
+        for (const s of (data || [])) byId[s.id] = s
+        songsData = roomData.song_ids.map(sid => byId[sid]).filter(Boolean)
+      } else {
+        const { data } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
+        songsData = data || []
+      }
       setSongs(songsData || [])
       songsRef.current = songsData || []
 

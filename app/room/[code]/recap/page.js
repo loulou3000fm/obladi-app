@@ -33,15 +33,23 @@ export default function Recap() {
       if (!roomData) { setError("Cette partie n'est plus disponible"); setLoading(false); return }
       setRoom(roomData)
 
-      if (roomData.playlists?.id) {
-        const { data: songsData } = await supabase
+      // Règle transversale : sélection figée (song_ids) DANS L'ORDRE, sinon toute la playlist.
+      let songsData = []
+      if (roomData.song_ids && roomData.song_ids.length) {
+        const { data } = await supabase.from('songs').select('*').in('id', roomData.song_ids)
+        const byId = {}
+        for (const s of (data || [])) byId[s.id] = s
+        songsData = roomData.song_ids.map(sid => byId[sid]).filter(Boolean)
+      } else if (roomData.playlists?.id) {
+        const { data } = await supabase
           .from('songs')
           .select('*')
           .eq('playlist_id', roomData.playlists.id)
           .order('position', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true })
-        setSongs(songsData || [])
+        songsData = data || []
       }
+      setSongs(songsData)
 
       const { data: answersData } = await supabase
         .from('answers')

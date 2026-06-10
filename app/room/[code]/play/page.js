@@ -83,7 +83,18 @@ export default function Play() {
       gamePhaseRef.current = startPhase
       phaseStartedAtRef.current = roomData.phase_started_at
 
-      const { data: songsData } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
+      // Règle transversale : si la room a une sélection figée (song_ids), on l'utilise DANS L'ORDRE ;
+      // sinon, comportement historique (toute la playlist, tri position/created_at).
+      let songsData
+      if (roomData.song_ids && roomData.song_ids.length) {
+        const { data } = await supabase.from('songs').select('*').in('id', roomData.song_ids)
+        const byId = {}
+        for (const s of (data || [])) byId[s.id] = s
+        songsData = roomData.song_ids.map(sid => byId[sid]).filter(Boolean)
+      } else {
+        const { data } = await supabase.from('songs').select('*').eq('playlist_id', roomData.playlists.id).order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: true })
+        songsData = data || []
+      }
       songsRef.current = songsData || []
       setSongs(songsData || [])
 

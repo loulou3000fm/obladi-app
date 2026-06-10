@@ -14,7 +14,7 @@ export async function POST(request) {
 
     const { data: room } = await supabase
       .from('rooms')
-      .select('id, status, phase, phase_started_at, current_song_index, playlist_id')
+      .select('id, status, phase, phase_started_at, current_song_index, playlist_id, song_ids')
       .eq('code', room_code.toUpperCase())
       .single()
 
@@ -47,7 +47,14 @@ export async function POST(request) {
     }
 
     if (room.phase === 'reveal') {
-      const { count } = await supabase.from('songs').select('*', { count: 'exact', head: true }).eq('playlist_id', room.playlist_id)
+      // Règle transversale : total = nb de morceaux sélectionnés (song_ids) si présent, sinon toute la playlist
+      let count
+      if (room.song_ids && room.song_ids.length) {
+        count = room.song_ids.length
+      } else {
+        const res = await supabase.from('songs').select('*', { count: 'exact', head: true }).eq('playlist_id', room.playlist_id)
+        count = res.count
+      }
       const nextIndex = room.current_song_index + 1
       if (nextIndex < count) {
         await supabase.from('rooms').update({ phase: 'playing', phase_started_at: now, current_song_index: nextIndex }).eq('id', room.id)

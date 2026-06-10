@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 export default function NewRoom() {
   const [playlists, setPlaylists] = useState([])
   const [selectedPlaylist, setSelectedPlaylist] = useState('')
+  const [numSongs, setNumSongs] = useState('15')
   const [title, setTitle] = useState('')
   const [loading, setLoading] = useState(false)
   const [created, setCreated] = useState(null)
@@ -28,11 +29,26 @@ export default function NewRoom() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); alert('Session expirée, reconnecte-toi.'); router.push('/login'); return }
     const code = generateRoomCode()
+
+    // Sélection des morceaux : "Tous" → null (toute la playlist), sinon tirage aléatoire de N ids
+    let song_ids = null
+    if (numSongs !== 'all') {
+      const n = parseInt(numSongs, 10)
+      const { data: songRows } = await supabase.from('songs').select('id').eq('playlist_id', selectedPlaylist)
+      const ids = (songRows || []).map(r => r.id)
+      for (let i = ids.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[ids[i], ids[j]] = [ids[j], ids[i]]
+      }
+      song_ids = ids.slice(0, n)
+    }
+
     const { data, error } = await supabase.from('rooms').insert({
       code,
       host_id: user.id,
       playlist_id: selectedPlaylist,
       status: 'waiting',
+      song_ids,
       title: title || playlists.find(p => p.id === selectedPlaylist)?.name || 'Partie sans titre'
     }).select().single()
     setCreated(data)
@@ -82,6 +98,24 @@ export default function NewRoom() {
                 {playlists.map(p => (
                   <option key={p.id} value={p.id}>{p.name} ({p.songs_count} chansons)</option>
                 ))}
+              </select>
+
+              <label style={{fontSize:'13px', fontWeight:'500', color:'#111'}}>
+                Nombre de morceaux
+                {selectedPlaylist && (() => {
+                  const total = playlists.find(p => p.id === selectedPlaylist)?.songs_count
+                  return total != null ? <span style={{fontWeight:'400', color:'#999'}}> · {total} dans la playlist</span> : null
+                })()}
+              </label>
+              <select
+                value={numSongs}
+                onChange={e => setNumSongs(e.target.value)}
+                style={{width:'100%', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', fontSize:'16px', outline:'none', backgroundColor:'#fff', color:'#111', boxSizing:'border-box'}}
+              >
+                <option value="10">10 morceaux (au hasard)</option>
+                <option value="15">15 morceaux (au hasard)</option>
+                <option value="20">20 morceaux (au hasard)</option>
+                <option value="all">Tous les morceaux</option>
               </select>
 
               <button

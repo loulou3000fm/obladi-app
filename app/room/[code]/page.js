@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../lib/supabase'
 import { ensureIOSPlayer, unlockIOSPlayer } from '../../../lib/iosYtPlayer'
 import { useParams, useRouter } from 'next/navigation'
+import { ensureProfile } from '../../../lib/ensureProfile'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -27,6 +28,7 @@ export default function RoomLobby() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push(`/login`); return }
       userRef.current = user
+      await ensureProfile(supabase, user)
 
       const { data: roomData } = await supabase
         .from('rooms')

@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '../../lib/supabase'
 import { getLevel } from '../../lib/game'
+import { ensureProfile } from '../../lib/ensureProfile'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SongModal from '../../components/SongModal'
@@ -35,7 +36,7 @@ export default function Dashboard() {
       if (!user) { router.push('/login'); return }
       viewerIdRef.current = user.id
 
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const prof = await ensureProfile(supabase, user)
       setProfile(prof)
       if (prof?.is_admin === true) { router.push('/admin'); return }
 

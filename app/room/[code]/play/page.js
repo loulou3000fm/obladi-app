@@ -4,6 +4,7 @@ import { createClient } from '../../../../lib/supabase'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds, checkAnswer, closeAnswer, getLevel } from '../../../../lib/game'
+import { ensureProfile } from '../../../../lib/ensureProfile'
 import { ensureIOSPlayer, unlockIOSPlayer, playIOSVideo, stopIOSVideo, wasIOSUnlocked } from '../../../../lib/iosYtPlayer'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
@@ -67,6 +68,7 @@ export default function Play() {
       if (!user) { router.push('/login'); return }
       userRef.current = user
       setPlayerId(user.id)
+      await ensureProfile(supabase, user)
       const { data: favs } = await supabase.from('favorites').select('song_id').eq('player_id', user.id)
       if (favs) setFavoritedSongIds(new Set(favs.map(f => f.song_id)))
 

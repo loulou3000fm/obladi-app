@@ -34,19 +34,21 @@ export default function Signup() {
     const { data, error: signupError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: 'https://obladi.live/auth/callback' }
+      // pseudo/avatar aussi en metadata : permet de recréer le profil plus tard si l'écriture ci-dessous échoue
+      options: { emailRedirectTo: 'https://obladi.live/auth/callback', data: { pseudo, avatar_id: avatarId } }
     })
 
     if (signupError) { setError(signupError.message); setLoading(false); return }
 
     if (data.user) {
-      await supabase.from('profiles').upsert({
+      // Connexion AVANT d'écrire le profil : sinon l'écriture se fait en anonyme et peut être refusée (RLS)
+      if (!data.session) await supabase.auth.signInWithPassword({ email, password })
+      const { error: profileError } = await supabase.from('profiles').upsert({
         id: data.user.id,
         pseudo,
         avatar_id: avatarId,
       }, { onConflict: 'id' })
-
-      await supabase.auth.signInWithPassword({ email, password })
+      if (profileError) console.error('Profile upsert:', profileError.message)
       router.push('/dashboard')
     }
 

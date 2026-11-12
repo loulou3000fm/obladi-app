@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds } from '../../../../../lib/game'
-import { ensureIOSPlayer, unlockIOSPlayer, playIOSVideo, stopIOSVideo } from '../../../../../lib/iosYtPlayer'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -21,7 +20,8 @@ export default function HostRoom() {
   const [countdown, setCountdown] = useState(INTRO_DURATION)
   // Mode local : le son sort uniquement de l'ordinateur de l'hôte (les joueurs sont muets)
   const [localAudio, setLocalAudio] = useState(false)
-  const [audioUnlocked, setAudioUnlocked] = useState(false)
+  // Incrémenté par "Relancer le son" : remonte l'iframe YouTube dans un geste utilisateur
+  const [audioKey, setAudioKey] = useState(0)
   const [localAudioError, setLocalAudioError] = useState('')
   const roomRef = useRef(null)
   const songsRef = useRef([])
@@ -147,26 +147,8 @@ export default function HostRoom() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
-  // Mode local : player YouTube persistant (même mécanique que iOS), déverrouillé par un clic de l'hôte
-  useEffect(() => {
-    if (!localAudio) return
-    ensureIOSPlayer()
-    return () => { stopIOSVideo() }
-  }, [localAudio])
-
-  useEffect(() => {
-    if (!localAudio) return
-    const s = songsRef.current[currentIndex]
-    if (phase === 'playing' && gamePhase === 'playing' && s?.youtube_id) playIOSVideo(s.youtube_id)
-    else stopIOSVideo()
-  }, [localAudio, phase, gamePhase, currentIndex, audioUnlocked])
-
-  function unlockHostAudio() {
-    if (!unlockIOSPlayer()) return
-    setAudioUnlocked(true)
-    const s = songsRef.current[currentIndexRef.current]
-    if (gamePhaseRef.current === 'playing' && s?.youtube_id) playIOSVideo(s.youtube_id)
-  }
+  // Mode local : même mécanique que les joueurs desktop (iframe YouTube autoplay, cf. page joueur)
+  function relaunchHostAudio() { setAudioKey(k => k + 1) }
 
   async function toggleLocalAudio() {
     const next = !localAudio
@@ -179,7 +161,6 @@ export default function HostRoom() {
 
   async function startGame() {
     // Clic = geste utilisateur → on en profite pour déverrouiller l'audio de l'hôte
-    if (localAudio) setAudioUnlocked(unlockIOSPlayer())
     setLoading(true)
     const res = await fetch('/api/start-game', {
       method: 'POST',
@@ -228,6 +209,7 @@ export default function HostRoom() {
   // En mode local l'écran de l'hôte est visible de tous : on masque le morceau tant qu'il n'est pas révélé
   const hideSpoilers = localAudio && phase === 'playing'
   const showCurrentSong = !hideSpoilers || gamePhase === 'reveal'
+  const hostAudioActive = localAudio && phase === 'playing' && gamePhase === 'playing' && !!song?.youtube_id
 
   if (!room) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui'}}>
@@ -237,6 +219,17 @@ export default function HostRoom() {
 
   return (
     <main style={{minHeight:'100vh', backgroundColor:'#fff', fontFamily:'system-ui, sans-serif'}}>
+      {hostAudioActive && (
+        <div style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}}>
+          <iframe
+            key={`${currentIndex}-${audioKey}`}
+            width="1" height="1"
+            src={`https://www.youtube.com/embed/${song.youtube_id}?autoplay=1&controls=0&mute=0`}
+            allow="autoplay"
+            title="host-audio-player"
+          />
+        </div>
+      )}
       <style>{`
         @media (max-width: 768px) {
           .host-nav { padding: 16px 24px !important; flex-wrap: wrap !important; gap: 12px !important; }
@@ -285,13 +278,13 @@ export default function HostRoom() {
           )}
 
           {phase === 'playing' && localAudio && (
-            <div style={{padding:'14px 20px', backgroundColor: audioUnlocked ? '#f0fdf4' : '#fff7ed', borderRadius:'12px', marginBottom:'16px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
-              <span style={{fontSize:'13px', color: audioUnlocked ? '#16a34a' : '#c2410c'}}>
-                {audioUnlocked ? '🔊 Mode local : le son sort de cet ordinateur' : '🔇 Son bloqué par le navigateur'}
+            <div style={{padding:'14px 20px', backgroundColor:'#f0fdf4', borderRadius:'12px', marginBottom:'16px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
+              <span style={{fontSize:'13px', color:'#16a34a'}}>
+                🔊 Mode local : le son sort de cet ordinateur{gamePhase === 'playing' && !song?.youtube_id ? ' (pas de vidéo YouTube pour ce morceau)' : ''}
               </span>
-              {!audioUnlocked && (
-                <button onClick={unlockHostAudio} style={{padding:'8px 16px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', cursor:'pointer'}}>
-                  Activer le son
+              {gamePhase === 'playing' && song?.youtube_id && (
+                <button onClick={relaunchHostAudio} style={{padding:'8px 16px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', cursor:'pointer'}}>
+                  🔁 Relancer le son
                 </button>
               )}
             </div>

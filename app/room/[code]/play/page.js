@@ -25,6 +25,8 @@ export default function Play() {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [audioUnlocked, setAudioUnlocked] = useState(false)
+  // Mode local : le son sort de l'ordinateur de l'hôte, cet appareil reste muet
+  const [localAudio, setLocalAudio] = useState(false)
   const [playerId, setPlayerId] = useState(null)
   const [favoritedSongIds, setFavoritedSongIds] = useState(new Set())
   const [favBusy, setFavBusy] = useState(false)
@@ -72,6 +74,7 @@ export default function Play() {
       if (!roomData) return
       setRoom(roomData)
       roomRef.current = roomData
+      setLocalAudio(!!roomData.local_audio)
       setPlaylistDescription(roomData.playlists?.description || '')
 
       const startIndex = roomData.current_song_index || 0
@@ -242,22 +245,22 @@ export default function Play() {
   // iOS : s'assure que le player partagé existe, et reflète l'état de déverrouillage
   // (normalement déjà fait dans le lobby via "Je suis prêt").
   useEffect(() => {
-    if (!isIOS) return
+    if (!isIOS || localAudio) return
     ensureIOSPlayer()
     setAudioUnlocked(wasIOSUnlocked())
     return () => { stopIOSVideo() }
-  }, [isIOS])
+  }, [isIOS, localAudio])
 
   // iOS : pilote la lecture YouTube (player partagé) selon la phase.
   useEffect(() => {
     if (!isIOS) return
     const song = songsRef.current[currentIndexRef.current]
-    if (gamePhase === 'playing' && song?.youtube_id) {
+    if (!localAudio && gamePhase === 'playing' && song?.youtube_id) {
       playIOSVideo(song.youtube_id)
     } else {
       stopIOSVideo()
     }
-  }, [gamePhase, isIOS, currentIndex, audioUnlocked])
+  }, [gamePhase, isIOS, currentIndex, audioUnlocked, localAudio])
 
   // Repli : si le player n'a pas été déverrouillé dans le lobby (ex. arrivée directe en partie),
   // ce bouton sur la page de jeu fait le geste de déverrouillage.
@@ -444,7 +447,7 @@ export default function Play() {
   const currentSong = songsRef.current[currentIndex]
   const phaseKey = `${gamePhase}-${currentIndex}`
 
-  const audioUnlockPrompt = isIOS && !audioUnlocked ? (
+  const audioUnlockPrompt = isIOS && !audioUnlocked && !localAudio ? (
     <button
       onClick={unlockAudioIOS}
       style={{marginTop:'24px', padding:'14px 28px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'500', cursor:'pointer', boxSizing:'border-box', maxWidth:'400px', width:'100%'}}
@@ -479,7 +482,7 @@ export default function Play() {
         }
       `}</style>
 
-      {!isIOS && gamePhase === 'playing' && currentSong?.youtube_id && (
+      {!isIOS && !localAudio && gamePhase === 'playing' && currentSong?.youtube_id && (
         <div style={{position:'fixed', top:'-9999px', left:'-9999px', width:'1px', height:'1px', overflow:'hidden'}}>
           <iframe
             key={currentIndex}
@@ -539,7 +542,10 @@ export default function Play() {
               <div className="play-count" style={{fontSize:'56px', fontWeight:'500', color: countdown <= 5 ? '#ef4444' : '#111', marginBottom:'32px', animation: countdown <= 5 ? 'pulse 0.5s ease infinite' : 'none'}}>
                 {countdown}<span style={{fontSize:'18px', color:'#999', fontWeight:'400', marginLeft:'4px'}}>s</span>
               </div>
-              {isIOS && !currentSong?.preview_url && (
+              {localAudio && (
+                <p style={{fontSize:'13px', color:'#999', marginTop:'-16px', marginBottom:'24px'}}>🔊 Le son sort de l&apos;ordinateur de l&apos;hôte</p>
+              )}
+              {isIOS && !localAudio && !currentSong?.preview_url && (
                 <p style={{fontSize:'13px', color:'#999', marginTop:'-16px', marginBottom:'24px'}}>🔇 Pas d'audio disponible</p>
               )}
               {audioUnlockPrompt && <div style={{marginBottom:'24px'}}>{audioUnlockPrompt}</div>}

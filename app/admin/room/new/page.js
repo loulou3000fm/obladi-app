@@ -9,6 +9,7 @@ export default function NewRoom() {
   const [selectedPlaylist, setSelectedPlaylist] = useState('')
   const [numSongs, setNumSongs] = useState('15')
   const [title, setTitle] = useState('')
+  const [localAudio, setLocalAudio] = useState(false)
   const [loading, setLoading] = useState(false)
   const [created, setCreated] = useState(null)
   const router = useRouter()
@@ -49,8 +50,11 @@ export default function NewRoom() {
       playlist_id: selectedPlaylist,
       status: 'waiting',
       song_ids,
+      // N'envoyé que si coché : les rooms classiques marchent même sans la colonne local_audio
+      ...(localAudio ? { local_audio: true } : {}),
       title: title || playlists.find(p => p.id === selectedPlaylist)?.name || 'Partie sans titre'
     }).select().single()
+    if (error) { setLoading(false); alert(`Erreur à la création : ${error.message}`); return }
     setCreated(data)
     setLoading(false)
   }
@@ -117,6 +121,14 @@ export default function NewRoom() {
                 <option value="20">20 morceaux (au hasard)</option>
                 <option value="all">Tous les morceaux</option>
               </select>
+
+              <label style={{display:'flex', alignItems:'flex-start', gap:'10px', padding:'12px 16px', border:'1px solid #e0e0e0', borderRadius:'8px', cursor:'pointer'}}>
+                <input type="checkbox" checked={localAudio} onChange={e => setLocalAudio(e.target.checked)} style={{marginTop:'3px'}} />
+                <span>
+                  <span style={{fontSize:'13px', fontWeight:'500', color:'#111', display:'block'}}>🔊 Mode local — le son sort de mon ordinateur</span>
+                  <span style={{fontSize:'12px', color:'#999'}}>Pour jouer dans la même pièce : seuls les appareils des joueurs restent muets, la musique est jouée depuis la page de gestion de la room.</span>
+                </span>
+              </label>
 
               <button
                 onClick={createRoom}

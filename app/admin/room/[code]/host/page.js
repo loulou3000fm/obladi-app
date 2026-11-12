@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '../../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import { INTRO_DURATION, PLAY_DURATION, REVEAL_DURATION, remainingSeconds } from '../../../../../lib/game'
+import { ensureIOSPlayer, unlockIOSPlayer, playIOSVideo, stopIOSVideo } from '../../../../../lib/iosYtPlayer'
 
 const AVATARS = { avatar_1:'🎵', avatar_2:'🎸', avatar_3:'🎹', avatar_4:'🥁', avatar_5:'🎺', avatar_6:'🎻', avatar_7:'🎤', avatar_8:'🎧' }
 
@@ -18,6 +19,10 @@ export default function HostRoom() {
   const [gamePhase, setGamePhase] = useState('intro')
   const [phaseStartedAt, setPhaseStartedAt] = useState(null)
   const [countdown, setCountdown] = useState(INTRO_DURATION)
+  // Mode local : le son sort uniquement de l'ordinateur de l'hôte (les joueurs sont muets)
+  const [localAudio, setLocalAudio] = useState(false)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const [localAudioError, setLocalAudioError] = useState('')
   const roomRef = useRef(null)
   const songsRef = useRef([])
   const gamePhaseRef = useRef('intro')
@@ -34,6 +39,7 @@ export default function HostRoom() {
       if (!roomData) return
       setRoom(roomData)
       roomRef.current = roomData
+      setLocalAudio(!!roomData.local_audio)
       const startIdx = roomData.current_song_index || 0
       setCurrentIndex(startIdx)
       currentIndexRef.current = startIdx
@@ -141,7 +147,39 @@ export default function HostRoom() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
+  // Mode local : player YouTube persistant (même mécanique que iOS), déverrouillé par un clic de l'hôte
+  useEffect(() => {
+    if (!localAudio) return
+    ensureIOSPlayer()
+    return () => { stopIOSVideo() }
+  }, [localAudio])
+
+  useEffect(() => {
+    if (!localAudio) return
+    const s = songsRef.current[currentIndex]
+    if (phase === 'playing' && gamePhase === 'playing' && s?.youtube_id) playIOSVideo(s.youtube_id)
+    else stopIOSVideo()
+  }, [localAudio, phase, gamePhase, currentIndex, audioUnlocked])
+
+  function unlockHostAudio() {
+    if (!unlockIOSPlayer()) return
+    setAudioUnlocked(true)
+    const s = songsRef.current[currentIndexRef.current]
+    if (gamePhaseRef.current === 'playing' && s?.youtube_id) playIOSVideo(s.youtube_id)
+  }
+
+  async function toggleLocalAudio() {
+    const next = !localAudio
+    setLocalAudioError('')
+    const supabase = createClient()
+    const { error } = await supabase.from('rooms').update({ local_audio: next }).eq('id', roomRef.current.id)
+    if (error) { setLocalAudioError("Impossible d'activer le mode local (colonne rooms.local_audio manquante ?)"); return }
+    setLocalAudio(next)
+  }
+
   async function startGame() {
+    // Clic = geste utilisateur → on en profite pour déverrouiller l'audio de l'hôte
+    if (localAudio) setAudioUnlocked(unlockIOSPlayer())
     setLoading(true)
     const res = await fetch('/api/start-game', {
       method: 'POST',
@@ -187,6 +225,9 @@ export default function HostRoom() {
   const roomUrl = typeof window !== 'undefined' ? `${window.location.origin}/room/${code}` : ''
   const song = songs[currentIndex]
   const readyCount = players.filter(p => p.is_ready).length
+  // En mode local l'écran de l'hôte est visible de tous : on masque le morceau tant qu'il n'est pas révélé
+  const hideSpoilers = localAudio && phase === 'playing'
+  const showCurrentSong = !hideSpoilers || gamePhase === 'reveal'
 
   if (!room) return (
     <main style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui'}}>
@@ -232,10 +273,38 @@ export default function HostRoom() {
                 <span style={{fontSize:'12px', color:'#999'}}>Code :</span>
                 <span style={{fontSize:'20px', fontWeight:'500', letterSpacing:'4px', color:'#111'}}>{code.toUpperCase()}</span>
               </div>
+              <label style={{display:'flex', alignItems:'flex-start', gap:'10px', marginTop:'16px', paddingTop:'16px', borderTop:'1px solid #ececec', cursor:'pointer'}}>
+                <input type="checkbox" checked={localAudio} onChange={toggleLocalAudio} style={{marginTop:'3px'}} />
+                <span>
+                  <span style={{fontSize:'13px', fontWeight:'500', color:'#111', display:'block'}}>🔊 Mode local — le son sort de cet ordinateur</span>
+                  <span style={{fontSize:'12px', color:'#999'}}>Pour jouer dans la même pièce : les appareils des joueurs restent muets. Garde cet onglet ouvert pendant la partie.</span>
+                </span>
+              </label>
+              {localAudioError && <p style={{fontSize:'12px', color:'#ef4444', marginTop:'8px'}}>{localAudioError}</p>}
             </div>
           )}
 
-          {phase === 'playing' && song && (
+          {phase === 'playing' && localAudio && (
+            <div style={{padding:'14px 20px', backgroundColor: audioUnlocked ? '#f0fdf4' : '#fff7ed', borderRadius:'12px', marginBottom:'16px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
+              <span style={{fontSize:'13px', color: audioUnlocked ? '#16a34a' : '#c2410c'}}>
+                {audioUnlocked ? '🔊 Mode local : le son sort de cet ordinateur' : '🔇 Son bloqué par le navigateur'}
+              </span>
+              {!audioUnlocked && (
+                <button onClick={unlockHostAudio} style={{padding:'8px 16px', backgroundColor:'#3b82f6', color:'#fff', border:'none', borderRadius:'6px', fontSize:'13px', cursor:'pointer'}}>
+                  Activer le son
+                </button>
+              )}
+            </div>
+          )}
+
+          {phase === 'playing' && song && !showCurrentSong && (
+            <div style={{padding:'24px', border:'1px solid #e0e0e0', borderRadius:'12px', marginBottom:'24px'}}>
+              <p style={{fontSize:'12px', color:'#999', marginBottom:'12px', textTransform:'uppercase', letterSpacing:'0.06em'}}>Question {currentIndex + 1} / {songs.length}</p>
+              <p style={{fontSize:'20px', fontWeight:'500', color:'#111'}}>🎵 Morceau mystère…</p>
+            </div>
+          )}
+
+          {phase === 'playing' && song && showCurrentSong && (
             <div style={{padding:'24px', border:'1px solid #e0e0e0', borderRadius:'12px', marginBottom:'24px'}}>
               <p style={{fontSize:'12px', color:'#999', marginBottom:'12px', textTransform:'uppercase', letterSpacing:'0.06em'}}>Question {currentIndex + 1} / {songs.length}</p>
               <div style={{display:'flex', gap:'16px', alignItems:'center'}}>
@@ -291,7 +360,15 @@ export default function HostRoom() {
           <div style={{marginTop:'32px'}}>
             <p style={{fontSize:'13px', fontWeight:'500', color:'#111', marginBottom:'12px'}}>Playlist — {room.playlists?.name}</p>
             <div className="host-songs" style={{border:'1px solid #f0f0f0', borderRadius:'8px', overflow:'hidden', maxHeight:'300px', overflowY:'auto'}}>
-              {songs.map((s, i) => (
+              {songs.map((s, i) => {
+                const masked = hideSpoilers && (i > currentIndex || (i === currentIndex && gamePhase !== 'reveal'))
+                return masked ? (
+                <div key={s.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', borderBottom:'1px solid #f8f8f8', backgroundColor: i === currentIndex ? '#f0f9ff' : 'transparent'}}>
+                  <span style={{fontSize:'12px', color:'#999', width:'20px'}}>{i + 1}</span>
+                  <p style={{fontSize:'12px', color:'#999', flex:1}}>???</p>
+                  {i === currentIndex && <span style={{fontSize:'11px', color:'#3b82f6'}}>● En cours</span>}
+                </div>
+                ) : (
                 <div key={s.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', borderBottom:'1px solid #f8f8f8', backgroundColor: i === currentIndex && phase === 'playing' ? '#f0f9ff' : 'transparent'}}>
                   <span style={{fontSize:'12px', color:'#999', width:'20px'}}>{i + 1}</span>
                   {s.cover_url && <img src={s.cover_url} width={28} height={28} style={{borderRadius:'4px'}} referrerPolicy="no-referrer" alt="" />}
@@ -302,7 +379,8 @@ export default function HostRoom() {
                   {i < currentIndex && <span style={{fontSize:'11px', color:'#999'}}>✓</span>}
                   {i === currentIndex && phase === 'playing' && <span style={{fontSize:'11px', color:'#3b82f6'}}>● En cours</span>}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

@@ -27,6 +27,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -53,14 +54,24 @@ export default function Profile() {
   }
 
   async function handleSave() {
+    setSaveError('')
+    const wantsPseudo = canChangePseudo && pseudo.trim() !== (profile?.pseudo || '')
+    if (wantsPseudo && pseudo.trim().length < 3) { setSaveError('Le pseudo doit faire au moins 3 caractères.'); return }
     setSaving(true)
     const supabase = createClient()
     const update = { bio }
-    if (canChangePseudo && pseudo.trim().length > 2 && pseudo.trim() !== profile.pseudo) {
+    if (wantsPseudo) {
       update.pseudo = pseudo.trim()
       update.pseudo_updated_at = new Date().toISOString()
     }
-    await supabase.from('profiles').update(update).eq('id', userId)
+    // .select() : une mise à jour bloquée par RLS ne renvoie pas d'erreur mais 0 ligne → on le détecte
+    const { data: rows, error } = await supabase.from('profiles').update(update).eq('id', userId).select('id')
+    if (error || !rows || rows.length === 0) {
+      setSaving(false)
+      if (error?.code === '23505') setSaveError('Ce pseudo est déjà pris, choisis-en un autre.')
+      else setSaveError(`Échec de l'enregistrement : ${error?.message || 'profil introuvable ou modification non autorisée'}`)
+      return
+    }
     setProfile(prev => ({ ...prev, ...update }))
     setSaving(false)
     setSaved(true)
@@ -165,6 +176,7 @@ export default function Profile() {
         >
           {saving ? 'Enregistrement...' : saved ? '✓ Enregistré' : 'Enregistrer les modifications'}
         </button>
+        {saveError && <p style={{fontSize:'13px', color:'#ef4444', marginTop:'-36px', marginBottom:'36px', textAlign:'center'}}>{saveError}</p>}
 
         {/* Stats */}
         <h2 style={{fontSize:'18px', fontWeight:'500', color:'#111', marginBottom:'16px', letterSpacing:'-0.3px'}}>Statistiques</h2>

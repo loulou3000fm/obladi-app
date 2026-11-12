@@ -14,6 +14,7 @@ export default function RoomLobby() {
   const [joined, setJoined] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState('')
+  const [joinError, setJoinError] = useState('')
   const roomRef = useRef(null)
   const userRef = useRef(null)
 
@@ -91,11 +92,14 @@ export default function RoomLobby() {
 
   async function joinRoom() {
     const supabase = createClient()
-    await supabase.from('room_players').upsert({
+    setJoinError('')
+    const { error: joinErr } = await supabase.from('room_players').upsert({
       room_id: roomRef.current.id,
       player_id: userRef.current.id,
       score: 0
     }, { onConflict: 'room_id,player_id' })
+    // Avant : l'erreur était ignorée → le joueur se croyait inscrit mais n'apparaissait nulle part
+    if (joinErr) { setJoinError(`Impossible de rejoindre la room : ${joinErr.message}`); return }
     setJoined(true)
   }
 
@@ -192,9 +196,12 @@ export default function RoomLobby() {
         </div>
 
         {!joined ? (
-          <button onClick={joinRoom} style={{width:'100%', padding:'14px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer'}}>
-            Rejoindre la partie
-          </button>
+          <>
+            <button onClick={joinRoom} style={{width:'100%', padding:'14px', backgroundColor:'#111', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'500', cursor:'pointer'}}>
+              Rejoindre la partie
+            </button>
+            {joinError && <p style={{fontSize:'12px', color:'#ef4444', marginTop:'8px', textAlign:'center'}}>{joinError}</p>}
+          </>
         ) : (
           <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
             <button

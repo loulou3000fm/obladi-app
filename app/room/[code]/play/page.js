@@ -103,6 +103,11 @@ export default function Play() {
 
       const { data: myPlayer } = await supabase.from('room_players').select('score').eq('room_id', roomData.id).eq('player_id', user.id).maybeSingle()
       if (myPlayer) { setMyScore(myPlayer.score || 0); myScoreRef.current = myPlayer.score || 0 }
+      else if (roomData.status === 'playing') {
+        // Arrivée tardive : le lobby redirige ici sans inscrire le joueur → on l'ajoute à la room
+        // (sinon il joue "dans le vide" : invisible pour l'hôte et le classement, score jamais enregistré)
+        await supabase.from('room_players').upsert({ room_id: roomData.id, player_id: user.id, score: 0 }, { onConflict: 'room_id,player_id' })
+      }
 
       const { data: playersData } = await supabase.from('room_players').select('*, profiles(pseudo, avatar_id, total_score)').eq('room_id', roomData.id).order('score', { ascending: false })
       setPlayers(playersData || [])
